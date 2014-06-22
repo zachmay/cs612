@@ -1,0 +1,311 @@
+\documentclass[12pt]{article}
+% \usepackage{palatino}
+\usepackage{epsfig}
+\usepackage{epstopdf} % for \psfig{.eps}
+\usepackage{amssymb} % for \varnothing
+\usepackage{amsmath} % for \pmod
+\usepackage{url} % to split long names
+\usepackage{color}
+\usepackage{listings}
+\setlength{\topmargin}{-0.1in}
+\setlength{\textheight}{8.0in}
+% \newcommand\note[1]{{\color{red} #1}}
+\pagestyle{myheadings}
+\markboth{Haskell Lecture Notes}{Haskell Lecture Notes}
+\newcommand\note[1]{\raggedright\fbox{#1}}
+% \newcommand\ind{\hspace*{.3in}}
+\newcommand\code[1]{\texttt{\textbf{#1}}}
+\def\>{\hspace*{0.2in}}
+\newenvironment{notelist}{\begin{list}
+   {$\bullet$}
+   {\setlength{\itemsep}{0in}}}
+   {\end{list}}
+    
+% Options for code listings
+\lstset{
+    frame=single,
+    language=Haskell,
+    numbers=left
+}
+
+\author{Zachary May}
+\title{Haskell Lecture Notes}
+\begin{document}
+\maketitle
+
+\section{Basic Haskell Types}
+
+In this section, we take a deeper look at Haskell's type system.
+
+\begin{notelist}
+\item Haskell offers the some basic primitive data types we would expect: \cite{haskell98}
+\begin{notelist}
+    \item \code{Int} and \code{Integer}: machine-sized and arbitrary precision integers, respectively.
+    \item \code{Float} and \code{Double}: single- and double-precision floating point numbers.
+    \item \code{Char}: Single Unicode characters.
+    \item \code{Bool}: Boolean values (but see below, \code{Bool} is actually a composite type).
+\end{notelist}
+
+\item Additionally, we have several composite data types:
+\begin{notelist}
+    \item \code{cons} lists: Lisp-style linked lists. The type is written \code{[a]} where \code{a}
+          is another type.
+    \item \code{String}: character strings; \code{String} is literally just a \textit{type synonym} for \code{[Char]}.
+    \item Tuples: $k$-element tuples, $k \geq 2$. The type of an $n$-element tuple is \code{(a1, a2, ..., an)} where
+          \code{a1}, \code{a2}, \ldots, and \code{an} are other types.
+\end{notelist}
+
+\item New data types are introduced with the \code{data} keyword.
+
+\item Type synonyms can be introduced with the \code{type} keyword. \code{type EmailAddress = String} says that 
+      the identifier \code{EmailAddress} can be used interchangeably with the type \code{String}. The advantage
+      is that \code{EmailAddress} is more descriptive.
+
+\item The keyword \code{newtype} creates a more controlled sort of type synonym.
+\begin{notelist}
+    \item If we wanted a type to describe e-mail address values but did not want it to be
+          interchangeable with \code{String}s in general, we could define a new type that simply ``tags''
+          a \code{String} value: \code{data EmailAddress = EmailAddress String}.
+    \item This comes with some amount of overhead each time we want to ``unwrap'' the \code{EmailAddress} and
+          get at the underlying \code{String}.
+    \item Instead we can use \code{newtype EmailAddress = EmailAddress String}. Haskell's type checker treats
+          this exactly like type introduced with \code{data}, but drops the tagging for purposes of code
+          generation, eliminating the overhead required to ``unwrap'' the \code{String}.
+\end{notelist}
+
+\item Although Haskell can \textit{infer} the types of most all expressions, types can be stated explicitly
+      with a type annotation using \code{::}. For example:
+\begin{lstlisting}
+nothing :: [String]
+nothing = []
+
+moreNothing = []
+\end{lstlisting}
+\begin{notelist}
+    \item We define two values, \code{nothing} and \code{moreNothing}.
+    \item Although the equational definitions are identical, we explicitly define the type of
+          \code{nothing} to be of type \code{[String]}, a list of strings, with the type
+          annotation on line 1.
+    \item Without an explicit type annotation, Haskell will infer the type of \code{moreNothing},
+          in this case, the more general type \code{[a]}. (This is a \textit{polymorphic type} which
+          we will discuss later.)
+\end{notelist}
+
+\item Haskell's lists and tuples are specific examples of the language's \textit{algebraic type system}.
+\item Algebraic data types were introduced in the Hope programming language in 1980. \cite{hope}
+\item An algebraic type system generally offers two sorts of types:
+\begin{notelist}
+    \item \textit{Product types}: A data type with one or more fields.
+    \begin{notelist}
+        \item Tuples are the archetypal product type.
+        \item The ``size'' of a product type is the product of the sizes of the types of its fields.
+        \item E.g., \code{(Bool, Bool)}, the type of 2-tuples of two Boolean values, has a total of $2 \cdot 2 = 4$ 
+              possible values.
+    \end{notelist}
+    \item An example:
+    \begin{lstlisting}
+    data DimensionalValue =
+        DimensionalValue Float Dimension
+    \end{lstlisting}
+    \begin{notelist}
+        \item \code{DimensionalValue} represents a \code{Float} value tagged with a unit of measure
+              of type \code{Dimension}. We will see later how we might describe that type.
+        \item The \code{data} keyword introduces a data type definition.
+        \item The identifier before the \code{=} is the name of the new type.
+        \item After the \code{=}, is the types constructor definition. The first identifier is the
+              \textit{data constructor}, followed by arbitrarily many field declarations. 
+        \item Our \code{DimensionalValue} type is equivalent to a tuple \code{(Float, Dimension)},
+              but we have given it a distinct and descriptive name.
+    \end{notelist}
+    
+    \item \textit{Sum types}: A data type with one or more alternatives.
+    \begin{notelist}
+        \item Enumerations are the archetypal sum types
+        \item An example:
+        \begin{lstlisting}
+        data Dimension = Seconds
+                       | Meters
+                       | Newtons
+        \end{lstlisting}
+        \begin{notelist}
+            \item As before \code{data} introduces a new type, here named \code{Dimension}.
+            \item The vertical pipe \code{|} separates the various alternatives.
+            \item Each alternative is given as a constructor definition as described above.
+                  Here we define three simple type constructors, \code{Seconds}, \code{Meters}, and
+                  \code{Newtons}.
+            \item These identifiers can be used as literal values of the type \code{Dimension}. 
+        \end{notelist}
+        \item The ``size'' of a sum type is the sum of the sizes of the types of its alternatives.
+        \item The type \code{Dimension} has $1 + 1 + 1 = 3$ possible values.
+        \item Haskell's \code{Bool} data type is defined as a sum type with data constructors \code{True} and \code{False}.
+    \end{notelist}
+
+    \item The power of algebraic data types comes when we combine the two: sums of products and products of sums:
+    \begin{lstlisting}
+    data PlaneTicket
+        = PlaneTicket Section MealOption
+
+    data Section = FirstClass
+                 | Business
+                 | Coach
+
+    data MealOption = Regular
+                    | Vegetarian
+
+    data TravelDetails = Train
+                       | Automobile
+                       | Plane PlaneTicket
+    \end{lstlisting}
+    \begin{notelist}
+        \item Here we define several types that might describe the domain model of a travel agency application.
+        \item \code{PlaneTicket} is a product type over two sum types: the section (\code{FirstClass} or \code{Coach}) and the meal option,
+              (\code{Regular} or \code{Vegetarian}).
+        \item \code{TravelDetails} is a sum type over two singleton data constructors \code{Train} and \code{Automobile} and a unary
+              product alternative that tags \code{PlaneTicket} details with the data constructor \code{Plane}
+        \item How many possible values are there for the \code{TravelDetails} type? $1 + 1 + (3 \cdot 2) = 8$.
+    \end{notelist}
+\end{notelist}
+\end{notelist}
+
+\section{Polymorphic types}
+
+\begin{notelist}
+    \item Earlier, we described the list and tuple types in terms of other, unspecified data types:
+    \begin{notelist}
+        \item \code{[a]} is the type of lists with elements of some type \code{a}.
+        \item \code{(a, b)} is the type of 2-tuples with first element of some type \code{a} and second 
+              element of some type \code{b}.
+    \end{notelist}
+    \item Here, \code{a} and \code{b} are \textit{type variables}.
+    \item Lexically, type variables must begin with a lowercase letter. Concrete data types (in addition to
+          data constructors) must begin with an uppercase letter.
+    \item Data types that contain type variables are called \textit{polymorphic types}. 
+    \item This type of polymorphism is known as \textit{parametric polymorphism}: substituting the concrete
+          type \code{Char} for the \textit{type parameter} \code{a} in \code{[a]} gives the concrete type
+          \code{[Char]}.
+    \item Parametric polymorphism is distinct from the \textit{inclusion polymorphism} seen in object-oriented
+          programming.
+    \item This example shows how we might implement our own \code{cons}-list and 2-tuple types:
+    \begin{lstlisting}
+    data List a = Nil
+                | Cons a (List a) 
+
+    data Pair a b = Pair a b
+
+    data OtherPair a = OtherPair a a
+    \end{lstlisting}
+    \begin{notelist}
+        \item Introducing type variables on the left-hand side of the \code{=} indicates that we are
+              defining a polymorphic types. \code{List} is parametric in a single type variable \code{a}
+              and \code{Pair} is parametric in two type variables, \code{a} and \code{b}. 
+        \item The two type variables called \code{a} in the definitions of \code{List} and \code{Pair} are
+              distinct.
+        \item What is the difference between our definition of \code{Pair} and \code{OtherPair}? \code{OtherPair}
+              is parametric in only one type variable so both of its elements must be of the same type.
+        \item We see that \code{List} is a a ``sum of products'': A \code{List} of \code{a}s is either
+              the empty list \code{Nil} \textit{or} it is a value of type \code{a} followed by another
+              \code{List} of \code{a}s. Thus, \code{List a} is a recursively-defined data type.
+        \item Let us also make a distinction here between:
+        \begin{notelist}
+            \item a \textit{concrete type}, like \code{List Integer} or \code{(String, Dimension)} that has
+                  no type variables;
+            \item a \textit{polymorphic type} like \code{List a} that has one or more type variables;
+            \item a \textit{type constructor} like \code{List} that, if ``applied'' to a concrete type,
+                  yields concrete type, and if ``applied'' to a type variable yields a polymorphic type.
+            \begin{notelist}
+                \item Type constructors are distinct from, but analagous to, data constructors.
+                \item A data constructor with fields, when applied to values to populate those fields, yields a
+                      value of the type associated with that data constructor.
+                \item A type constructor that admits type variables, when applied to types to instantiate those
+                      type variables, yields an instantiation of the associated polymorphic type.
+            \end{notelist}
+        \end{notelist}
+    \end{notelist}
+\end{notelist}
+
+\section{Function Types}
+
+\begin{notelist}
+    \item The examples we have looked at so far are for the types of values. However, Haskell supports
+          \textit{first-class functions}: functions can be passed as parameters into functions and be
+          be returned as the result of a function.
+    \item That is to say, in Haskell, functions \textit{are} values. So how do we describe their types?
+    \item First, we never actually define new function types with \code{data}, although we can define
+          synonyms for function types with \code{type}.
+    \item The one true function type constructor is \code{->}, as in \code{a -> b}, the polymorphic
+          type of functions with domain \code{a} and co-domain \code{b}.
+    \begin{notelist}
+        \item What does the function type \code{a -> a} represent? Functions with identical domain and co-domain.
+        \item With no other information about the type \code{a}, what sort of function can have
+              the type \code{a -> a}? The identity function.
+    \end{notelist}
+    \item The functions described by \code{->} appear to only have one parameter, the type on the 
+          left of the \code{->}. Haskell has operations (read: functions) like addition that take two parameters,
+          so how can we describe the type of such a function?
+    \item Recall that functions can return other functions as their result. Haskell models multi-parameter
+          functions with single parameter functions that return a new function ready to consume more parameters.
+          This technique is called \textit{currying}, named for the logician Haskell Curry.
+    \begin{lstlisting} 
+    add x = \y -> x + y
+    \end{lstlisting} 
+    \begin{notelist}
+        \item We define \code{add} as a function that takes a single parameter \code{x}.
+        \item It returns an anonymous function, introduced by \code{\\} (meant to suggest the Greek $\lambda$).
+              It's parameter is called \code{y}. The result of this anonymous function is the sum of \code{x + y}. 
+        \item When calling \code{add}, the actual parameter provided for the formal parameter \code{x} is preserved
+              in a \textit{closure} that, along with the body of the anonymous function, makes up the
+              function value we return.
+    \end{notelist}
+    
+    \item Haskell does not actually inconvenience us by requiring this notation. We can just define \code{add} as:
+    \begin{lstlisting} 
+    add x y = x + y
+    \end{lstlisting} 
+
+    \item However, Haskell really is using currying under the hood. As such, we can \textit{partially apply}
+          functions. Even with the simple definition, \code{add 5} is not an error, it returns a function value
+          ready to accept another argument and add it to 5.
+
+    \item Now the type of \code{add} should be more clear. Assuming we are only adding \code{Integers}, it must
+          be \code{Integer -> (Integer -> Integer)}. 
+
+    \item \code{->} is right associative, so we can simplify this to just \code{Integer -> Integer -> Integer}.
+
+    \item In this form, we can view the type after the last \code{->} as the return type of the function and
+          all the other types as the types of the function's parameters.
+
+    \item We still need parentheses for grouping if one of the parameters is a function:
+    \begin{notelist}
+        \item Consider the function \code{map :: (a -> b) -> [a] -> [b]}.
+        \item What are the types of the parameters and return value of \code{map}? The first parameter is a function
+              with domain \code{a} and co-domain{b}. The second parameter is a list of \code{a}s. The result
+              is a list of \code{b}s.
+        \item How is that different from \code{map' :: a -> b -> [a] -> [b]}? \code{map'} takes three parameters
+              (an \code{a}, a \code{b}, and a list of \code{a}s) and returns a list of \code{b}s.
+        \item To what extent can you infer the semantics of \code{map} \textit{from its type alone}?
+    \end{notelist}
+    
+    \item In general, we call functions that have one or more functions as their parameters or that return functions
+          as their result \textit{higher-order functions}. As we will see, they central to more advanced techniques
+          in functional programming.
+\end{notelist}
+
+\begin{thebibliography}{99}
+\bibitem{haskell98}
+  Simon Peyton Jones, et al.,
+  \emph{Haskell 98 Language and Libraries: The Revised Report}.
+  \texttt{http://www.haskell.org/onlinereport/index.html},
+  2002.
+\bibitem{haskellhistory}
+  Paul Hudak, et al.,
+  \emph{A History of Haskell: Being Lazy With Class}.
+  \texttt{http://www.scs.stanford.edu/~dbg/readings/haskell-history.pdf},
+  2007.
+\bibitem{hope}
+  R.M. Burstall, D.B. MacQueen, D.T. Sannella,
+  \emph{Hope: An Experimental Applicative Language}
+  \texttt{http://homepages.inf.ed.ac.uk/dts/pub/hope.pdf},
+  1980.
+\end{thebibliography}
+
+\end{document}
