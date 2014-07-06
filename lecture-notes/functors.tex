@@ -1,0 +1,200 @@
+\section{Maybe, Lists, and The Functor Typeclass}
+
+Now let us consider a type defined in the Haskell Prelude, \code{Maybe}:
+
+\begin{lstlisting}
+data Maybe a = Nothing
+             | Just a
+\end{lstlisting}
+
+\begin{notelist}
+    \item \code{Maybe} is the Haskell version of the \textit{option type}. It offers us a way to
+          represent a value that might not exist. \code{Nothing} is the ``null'' value, and
+          the \code{Just} constructor wraps an actual value.
+    \item For example, we might want a function that parses an integer value from a string to
+          have the return type \code{Maybe Integer}, since the parse might fail.
+    \item Compare this to Java's type system where \code{null} is a possible value for any
+          reference type. \code{null} is a \code{Person} even though \code{null} does not respond to  
+          any of \code{Person}'s methods--or any methods at all!
+    \item In Haskell, on the other hand, a function that claims to return a \code{Person} always returns
+          a full-fledged \code{Person} (barring exceptional failure) and a function that sometimes
+          returns a \code{null}-like value must declare that in its type, e.g., \code{String -> Maybe Integer}.
+\end{notelist}
+
+The safety we get when we use an option type is nice, but it comes with some inconvenience: If I 
+have a value of type \code{Maybe Integer}, how do I add five to it? In general, how do I unwrap
+a value of the form \code{Just x} to get at \code{x}? It isn't difficult in principle:
+
+\begin{lstlisting}
+parseInteger :: String -> Maybe Integer
+# Implemented elsewhere
+
+example1 :: String -> Integer
+example1 str = case parseString str of
+                  Just x  -> x + 5
+                  Nothing -> 0
+
+example2 :: String -> Maybe Integer
+example2 str = case parseString str of
+                  Just x  -> Just (x + 5)
+                  Nothing -> Nothing
+\end{lstlisting}
+
+\begin{notelist}
+    \item However, this code has some shortcomings:
+    \begin{notelist}
+        \item In \code{example1}, we're making an assumption about how to handle the ``error'' case
+              (returning zero if the parse failed) that is now interwoven with the independent process
+              of adding five.
+        \item Both examples repeat the code to test both the \code{Just} and \code{Nothing} case. Moreover,
+              if we used \code{Maybe} frequently (which is encouraged), this would start to get rather
+              annoying.
+    \end{notelist}
+\end{notelist}
+
+We will reject \code{example1} because we really would like to maintain the orthogonality of
+dealing with \code{Maybe} values and our actual operation. However we can use higher-order
+functions to factor out repetition we see in analyzing \code{Maybe}s.
+
+\begin{lstlisting}
+applyToMaybe :: (a -> b) -> (Maybe a) -> (Maybe b)
+applyToMaybe f Nothing  = Nothing
+applyToMaybe f (Just x) = Just (f x)
+\end{lstlisting}
+
+\begin{notelist}
+    \item \code{applyToMaybe} factors out handling the \code{Nothing} and \code{Just} cases of \code{Maybe}
+          values.
+    \item We also get some vocabulary for ``lifting'' normal function application into the world of \code{Maybe}
+          values.
+    \item In our ``add five'' example, we can now just use \code{applyToMaybe (+5) \$ parseString str}
+\end{notelist}
+
+Let's look at another example. We have seen Haskell's basic, homogeneous list type. It offers us a way to
+represent a collection of zero or more values of some type.
+
+We have also seen the function \code{map :: (a -> b) -> [a] -> [b]} that applies a function
+to each element in a list and returns the results collected into a new list. 
+
+\begin{lstlisting}
+map :: (a -> b) -> [a] -> [b]
+map f []     = []
+map f (x:xs) = f x : (map f xs)
+\end{lstlisting}
+
+If we compare \code{applyToMaybe} and \code{map}, we see some important similarities:
+
+\begin{notelist}
+    \item Both functions have an ``empty'' case and a case where one or more values are ``unwrapped'',
+          a function applied, and the result(s) wrapped back up. 
+    \item If we ignore the special case of Haskell's list type syntax, the functions have analogous types
+          of the form \code{(a -> b) -> f a -> f b}
+\end{notelist}
+
+\subsection{The Functor Typeclass}
+
+In fact, this pattern is codified in Haskell with the \code{Functor} type class:
+
+\begin{lstlisting}
+class Functor f where
+    fmap :: (a -> b) -> f a -> f b
+\end{lstlisting}
+
+\begin{notelist}
+    \item A \code{Functor} instance is always a polymorphic data type with a single type parameter.
+    \item At one level we can think of \code{Functor}s as simply ``mappable'' containers.
+    \item At another level, we can think of them as values in some sort of context, where \code{fmap}
+          lifts function application into that new context.
+\end{notelist}
+
+\subsubsection{Functor Instances}
+
+Let's look at some \code{Functor} instances:
+
+\begin{notelist}
+    \item \textbf{\code{Maybe}}
+    \begin{notelist}
+        \item We can think of \code{Maybe a} as a context representing a value of type \code{a} with the 
+              possibility of failure.
+        \item In this context, we can think of \code{fmap} as creating new functions that know how to
+              propagate these failure states.
+    \end{notelist}
+
+    \item \textbf{Lists, i.e., \code{[]}}
+    \begin{notelist}
+        \item The implementation of \code{fmap} for lists is literally just the Prelude's \code{map} function.
+        \item From the context perspective, we can think of lists as non-deterministic values; i.e., the
+              result of applying the function \code{(* 2)} to the non-deterministic ``value'' that might be
+              one of \code{[1, 2, 3]} would be the non-deterministic value that might be one of
+              \code{[2, 4, 6]}.
+    \end{notelist}
+
+    \item \textbf{\code{Tree}}
+    \begin{notelist}
+        \item Mapping over a collection makes sense for trees, but what might \code{Tree} represent from the perspective
+              of values in a context?
+        \item Interestingly, while mapping over elements in a set seems reasonable enough, Haskell's \code{Set} type
+              can't be directly declared an instance of \code{Functor}. Because \code{Set} is implemented via balanced
+              binary trees, it has an \code{Ord} constraint on the types it can contain. This extra constraint is
+              incompatible with the general \code{Functor} definition; we would need \code{fmap} to have the type
+              \code{(Ord a, Ord b) => (a -> b) -> f a -> f b}.
+        \item \code{Map}, however can be a \code{Functor}. Rather, maps with keys of type \code{k}, i.e., \code{Map k}
+              can be a \code{Functor}. Haskell \code{Map}s are represented using balanced binary trees over the
+              key type \code{k}, so there is still an \code{Ord} constraint, \code{Functor} cares about the type of
+              the values, not the type of the keys.
+    \end{notelist}
+
+    \item \textbf{\code{((->) e)}}
+    \begin{notelist}
+        \item This type looks a big strange. Haskell's syntax doesn't allow it, but read this type as \code{(e ->)}.
+        \item Concretely, the type of the \code{fmap} implementation here would be \code{(a -> b) -> (e -> a) -> (e -> b)}
+        \item \cite{typeclassopedia} describes \code{((->) e)} as ``a (possibly infinite) set of values of \code{a}, indexed by
+              values of \code{e},'' or ``a context in which a value of type e is available to be consulted in a read-only fashion.''
+        \item If we have a predicate \code{isOdd :: Int -> Bool}, and \code{fmap} it over a function \code{length :: String -> Int}
+              that returns the length of its argument, we get a new function of type {String -> Bool} that returns whether or
+              not the \code{String}'s length is odd.
+        \item From the context perspective, \code{fmap isOdd} takes us from \code{Int}s indexed by \code{String}s to \code{Bool}s
+              indexed by \code{String}s.
+    \end{notelist}
+\end{notelist}
+
+\subsubsection{Functor Laws}
+
+For the Haskell type system, anything that implements \code{fmap :: (a -> b) -> f a -> f b} is perfectly suitable
+as an instance of \code{Functor}. However, the concept of functors come to us from the branch of mathematics called
+category theory, where functors must satisfy certain laws. In Haskell terms:
+
+\begin{lstlisting}
+     fmap id == id
+fmap (g . h) == (fmap g) . (fmap h)
+\end{lstlisting}
+
+\begin{notelist}
+    \item Mapping the identify function over the contents of a \code{Functor} just gives back the original \code{Functor}.
+    \item \code{fmap} distributes over function composition.
+    \item Ultimately, these two laws just mean that a ``well-behaved'' \code{Functor} instance only operates on the
+          ``contents'' of the \code{Functor}, leaving its structure unchanged.
+\end{notelist}
+
+Consider this badly-behaved instance definition for lists taken from \cite{typeclassopedia}.
+
+\begin{lstlisting}
+instance [] where
+    fmap g []     = []
+    fmap g (x:xs) = g x : g x : fmap g xs
+\end{lstlisting}
+
+\begin{notelist}
+    \item This implementation of \code{fmap} ``doubles'' all the output values: \code{fmap (+1) [1, 2, 3]} returns
+          \code{[2, 2, 3, 3, 4, 4]}.
+    \item The first law is broken because \code{fmap id [1, 2, 3]} returns \code{[1, 1, 2, 2, 3, 3]} rather than 
+          \code{[1, 2, 3]}.
+    \item The second law is broken because \code{fmap ((+1) . (*2)) [1,2,3]} returns \code{[3, 3, 5, 5, 7, 7]} rather than
+          \code{[3, 5, 7]}.
+\end{notelist}
+
+Although Haskell's type system is quite powerful, it is in general undecideable whether a \code{Functor} instance satisfies
+the two laws described above, so that requirement cannot be checked at compile time. Since other Haskell code in the standard
+libraries and elsewhere will expect new \code{Functor} instances to be well-behaved, it is the responsibility of
+the programmer to prove, at least to their own satisfaction, that their implementation satisfies those laws.  We will look at
+more typeclasses later on, each with their own laws, and this caveat applies to them as well.

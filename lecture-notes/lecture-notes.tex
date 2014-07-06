@@ -1,0 +1,71 @@
+\documentclass[12pt]{article}
+% \usepackage{palatino}
+\usepackage{epsfig}
+\usepackage{epstopdf} % for \psfig{.eps}
+\usepackage{amssymb} % for \varnothing
+\usepackage{amsmath} % for \pmod
+\usepackage{url} % to split long names
+\usepackage{color}
+\usepackage{listings}
+\usepackage{hyperref}
+\setlength{\topmargin}{-0.1in}
+\setlength{\textheight}{8.0in}
+% \newcommand\note[1]{{\color{red} #1}}
+\pagestyle{myheadings}
+\markboth{Haskell Lecture Notes}{Haskell Lecture Notes}
+\newcommand\note[1]{\raggedright\fbox{#1}}
+% \newcommand\ind{\hspace*{.3in}}
+\newcommand\code[1]{\texttt{\textbf{#1}}}
+\def\>{\hspace*{0.2in}}
+\newenvironment{notelist}{\begin{list}
+   {$\bullet$}
+   {\setlength{\itemsep}{0in}}}
+   {\end{list}}
+    
+% Options for code listings
+\lstset{
+    frame=single,
+    language=Haskell,
+    numbers=left
+}
+
+\author{Zachary May}
+\title{Haskell Lecture Notes}
+\begin{document}
+\maketitle
+
+\input{introduction.tex}
+\input{type-system.tex}
+\input{typeclasses.tex}
+\input{functors.tex}
+\input{applicative-functors.tex}
+\input{monads.tex}
+\input{parser-combinators.tex}
+\input{monad-transformers.tex}
+
+\begin{thebibliography}{99}
+\bibitem{haskell98}
+  Simon Peyton Jones, et al.,
+  \href{http://www.haskell.org/onlinereport/index.html}{\emph{Haskell 98 Language and Libraries: The Revised Report}},
+  2002.
+\bibitem{haskellhistory}
+  Paul Hudak, et al.,
+  \href{http://www.scs.stanford.edu/\~dbg/readings/haskell-history.pdf}{``A History of Haskell: Being Lazy With Class''},
+  2007.
+\bibitem{hope}
+  R.M. Burstall, D.B. MacQueen, D.T. Sannella,
+  \href{http://homepages.inf.ed.ac.uk/dts/pub/hope.pdf}{``Hope: An Experimental Applicative Language''},
+  1980.
+\bibitem{derivabletype}
+  Ralf Hinze, Simon Peyton Jones,
+  ``Derivable Type Classes'',
+  \emph{Proceedings of the Fourth Haskell Workshop}, 227--236,
+  2000
+\bibitem{typeclassopedia}
+  Brent Yorgey,
+  ``The Typeclassopedia'',
+  \href{http://www.haskell.org/wikiupload/8/85/TMR-Issue13.pdf}{\emph{The Monad.Reader}}, 13, 17-68,
+  2009
+\end{thebibliography}
+
+\end{document}

@@ -1,0 +1,264 @@
+\section{Ad-Hoc Polymorphism with Typeclasses}
+
+\begin{notelist}
+    \item At the machine level, adding two integers is quite a different operation from
+          adding two floating-point numbers. High-level languages, in an effort to hide
+          this detail, \textit{overload} the semantics of the addition operator to support 
+          these distinct operations using the same operator. 
+
+    \item In a strongly-typed language like Haskell, what might the type of \code{(+)} be?
+    \begin{notelist}
+        \item In Haskell, infix binary operators are just syntactic sugar for functions
+              of two arguments. When referring to binary operators outside of their
+              normal infix notation, Haskell requires them to be surrounded by parentheses.
+    \end{notelist}
+
+    \item \code{Int -> Int -> Int} or similar is insufficient, since the type of \code{(+)}
+          needs to be general enough to describe adding together two operands
+          of many different numeric types.
+
+    \item \code{a -> a -> a} seems promising: two operands and a result, all of the same type. However,
+          this type signature \textit{unifies} with \code{TravelDetails -> TravelDetails -> TravelDetails}
+          and addition of that type does not make sense.
+
+    \item What happens if we ask the Haskell compiler to infer the type of \code{(+)}?
+    \begin{notelist}
+        \item The most popular Haskell compiler, GHC, has a REPL interface called GHCi.
+        \item The command \code{:t \textit{expression}} asks GHCi to infer the type of
+              \code{\textit{expression}}.
+        \item \code{:t (+)} yields the inferred type: \code{(Num a) => a -> a -> a}.
+    \end{notelist}
+
+    \item \code{(Num a) => ...} is a \textit{class constraint} on the type signature that
+          follows the \code{=>}. 
+
+    \item Normally, a free type variable in a type signature can be unified with any type at all.
+    
+    \item A class constraint on a type variable restricts the types that it can be unified with
+          to types that are \textit{instances} of the named \textit{type class}.
+
+    \item So \code{(+) :: (Num a) => a -> a -> a} says that \code{(+)} is a function of
+          two operands and result all of some type \code{a} \textit{where \code{a} is
+          an instance of the type class \code{Num}}.
+
+    \item A type class acts a bit like a \textit{interface} in object-oriented programming.
+          It acts as a contract: any type that is an instance of a type class must implement 
+          certain methods to qualify.
+
+    \item The terminology may be a bit confusing:
+    \begin{notelist}
+        \item In an OO language, an object is an \textit{instance} of a \textit{class} which
+              might \textit{implement} an \textit{interface}.
+        \item In Haskell, a value \textit{has} a \textit{type} which might be an \textit{instance}
+              of a \textit{type class}.
+    \end{notelist}
+\end{notelist}
+
+\section{Basic Typeclasses from The Haskell Prelude}
+
+Haskell offers quite a bit of functionality in its standard library. In particular, the \textit{Prelude},
+the set of type and function definitions imported automatically into every program, defines 
+
+One of the most basic typeclasses is \code{Eq}, consisting of types that implement an equality-testing
+operation. Here is how it is defined:
+
+\begin{lstlisting}
+  class Eq a where
+        (==), (/=)  ::  a -> a -> Bool
+
+        x /= y  = not (x == y)
+        x == y  = not (x /= y)
+\end{lstlisting}
+
+\begin{notelist}
+    \item The \code{class} keyword introduces a type class definition, followed by the
+          name of the type class and a type variable that we will use in the description
+          of the type class's interface. Think of this type variable as a formal parameter
+          in a function definition. 
+
+    \item The \code{Eq} type class defines two required operations, equality and inequality.
+          In this case, the two have exactly the same signature, so the type annotation
+          is shared.
+
+    \item If we asked Haskell to infer the type of \code{(==)}, what would we get?
+          \code{(==) :: (Eq a) => a -> a -> Bool}.
+
+    \item Then we see two equational function definitions. These are default implementations
+          for \code{Eq}'s operations.
+
+    \item This means we do not have to define both \code{(==)} and \code{(/=)}. Each is defined
+          in terms of the other, so an implementation for one is enough. The compiler will
+          complain if neither is implemented.
+
+    \item Because we can define default implementations, type classes are actually more like
+          \textit{abstract classes} in OO languages.
+\end{notelist}
+
+Typeclasses can themselves have class constraints. Here is the definition of \code{Ord}, which describes
+operations available for totally ordered data types:
+
+\begin{lstlisting}
+class Eq a => Ord a where
+    compare              :: a -> a -> Ordering
+    (<), (>=), (>), (<=) :: a -> a -> Bool
+    max                  :: a -> a -> a
+    min                  :: a -> a -> a
+
+data Ordering = LT | EQ | GT
+\end{lstlisting}
+
+\begin{notelist}
+    \item Class constraints in a type annotation, as in line 1 above, require that the constrained
+          type variable be an instance of the given typeclass.
+    
+    \item In this case, for a type to be an instance of \code{Ord}, it must also be an instance of
+          \code{Eq}. It should be pretty clear why that is necessary.
+    
+    \item The full definition of \code{Ord} gives default implementations for all these operations so
+          that an instance need only implement either \code{compare} or \code{(<=)}.
+\end{notelist}
+
+There are several other typeclasses worth mentioning:
+
+\begin{notelist}
+    \item \code{Show} instances can be turned into a \code{String} representation with \code{show :: (Show a) => a -> String}.
+    \item \code{Read} instances know how to undo the process and turn a string into a value.
+    \item \code{Bounded} instances are types with a smallest and largest values, given as two polymorphic 
+          constants \code{minBound, maxBound :: (Bounded a) => a}.
+    \item \code{Enum} instances are sequentially ordered types. Given a value in that sequence, we can use
+          \code{succ, pred :: (Enum a) => a -> a} to get the next or previous value. We can use 
+          \code{enumFromTo :: (Enum a) => a -> a -> [a]} to get a list containing the elements in the sequence
+          between a start value and an end value, inclusive.
+\end{notelist}
+
+Haskell's standard library also defines a hierarchy of numeric typeclasses.
+
+\begin{notelist}
+    \item We saw that GHC would infer the type \code{(Num a) => a -> a -> a} for the \code{(+)} operator.
+          That, along with \code{(*)}, \code{(-)} (the binary subtraction operator), \code{negate} (for unary
+          negation), and a couple of others define the most basic interface for numeric types.
+    \item \code{Fractional} extends \code{Num} with division in \code{(/)} and reciprocation in \code{recip}.
+    \item \code{Floating} extends \code{Fractional} with real-valued logarithms, exponentiation, trigonometric
+          functions and even \code{(Floating a) => pi :: a}, the polymorphic constant $\pi$.
+\end{notelist}
+
+The full numeric hierarchy is even richer and there is plenty of detail in the Prelude's typeclasses that we
+have glossed over. Full details are available in \cite[section 6.4]{haskell98}.
+
+\section{Creating New Typeclass Instances}
+
+Haskell typeclasses are \textit{open}, meaning that we can define new instances of typeclasses defined in the
+Prelude or elsewhere.
+
+Let's see how we can implement some of the Prelude's basic typeclasses for a simple type.
+
+\begin{lstlisting}
+data Section = Coach
+             | Business
+             | FirstClass
+
+instance Eq Section where
+    FirstClass == FirstClass = True
+    Business   == Business   = True
+    Coach      == Coach      = True
+    _          == _          = False
+
+instance Ord Section where
+    x          <= y          | x == y = True
+    Coach      <= _                   = True
+    Business   <= Coach               = False
+    Business   <= FirstClass          = True
+    FirstClass <= _                   = False
+    
+instance Show Section where
+    show Coach      = "Coach"
+    show Business   = "Business"
+    show FirstClass = "FirstClass"
+\end{lstlisting}
+
+\begin{notelist}
+    \item An instance declaration begins with the keyword \code{instance}, followed by equational
+          definitions for the various functions defined for the class.
+    \item The definition of \code{(==)} for \code{Eq} is straightforward. We define the function
+          in four cases. In the first three equations, we enumerate the cases where values could
+          be considered equal and the last equation is a catch-all: the underscore character 
+          matches any value, so any case not matched by the first three equations will get caught
+          by the fourth and will return \code{False}.
+    \item We define an \code{Ord} instance by enumerating the ways in which \code{Section} values
+          can be ordered. The first equation uses a \textit{guard}: \code{x} and \code{y} will match
+          any values, but the match is only successful if the \textit{guard expression} evaluates
+          to \code{True}.
+    \item The \code{Show} instance is trivial: we simpliy define a string value to return for each
+          of \code{Section}'s three data constructors.
+\end{notelist}
+
+We can imagine that defining instances for these typeclasses would be quite similar for any algebraic
+data type. It seems trivial to automatically construct an \code{Eq} instance for any simple sum type.
+Furthermore, because of the recursive nature of algebraic data types, it would be easy to extend that
+idea to arbitrary sum-of-products types. 
+
+\begin{lstlisting}
+data S = P1 T1_1 ... T1_K1
+       | P2 T2_1 ... T2_K2
+         ...
+       | PN TN_1 ... TN_KN
+
+instance Eq S where
+    P1 u1_1 ... u1_k1 == P1 v1_1 ... v1_k1 = u1_1 == v1_1 && .. && u1_k1 == v1_k1
+    P2 u2_1 ... u2_k2 == P2 v2_1 ... v2_k2 = u2_1 == v1_1 && .. && u2_k2 == v2_k2
+    ..
+    PN un_1 ... uN_kN == PN vN_1 ... v1_kN = uN_1 == vN_N && .. && uN_kN == vN_kN
+    _ == _ = False
+\end{lstlisting}
+
+\begin{notelist}
+    \item This is pseudocode for the general form of an \code{Eq} instance for a sum of
+          $N$ constructors that are each a product of $K_N$ values.
+    \item In words, two \code{S} values are equal if their data constructors are equal and
+          each pair of constituent values are equal.
+\end{notelist}
+
+In fact, Haskell offers the ability to \textit{derive} typeclass instances, and not just for 
+\code{Eq}.
+
+\begin{lstlisting}
+data Section = Coach
+             | Business
+             | FirstClass
+             derving (Eq, Ord, Show)
+\end{lstlisting}
+
+\begin{notelist}
+    \item The \code{deriving} keyword instructs the compiler to automatically derive instances
+          for the typeclasses that follow.
+    \item The Haskell 98 standard can derive instances for \code{Eq}, \code{Ord}, \code{Enum},
+          \code{Bounded}, \code{Show}, and \code{Read}.
+    \item In automatically derived instances of \code{Ord}, \code{Enum}, and \code{Bounded},
+          the order of declaration of the data constructors is used. So our derived
+          \code{Ord} instance for \code{Section} still returns \code{True} for  \code{Coach <= FirstClass}.
+\end{notelist}
+
+Because the derived definitions are recursive, we might not always be able to derive instances
+when the constituents of product types do not support the operations we need:
+
+\begin{lstlisting}
+data Section = Coach
+             | Business
+             | FirstClass BeverageOption
+             derving (Eq, Ord, Show)
+
+data BeverageOption = Wine
+                    | Beer
+                    | Soda
+\end{lstlisting}
+
+\begin{notelist}
+    \item Here, we cannot automatically derive an \code{Eq} instance for \code{Section} because 
+          \code{BeverageOption} is not an instance of \code{Eq}. We cannot determine if two
+          values using the \code{FirstClass} constructor are equal because we have no way of
+          checking two \code{BeverageOption} values for equality.
+    \item Similarly, we could not derive an \code{Ord} instance since we have no notion of
+          ordering on \code{BeverageOption}s.
+    \item In this case, adding a \code{deriving} clause to our definition of the
+          \code{BeverageOption} type would resolve the problem.
+\end{notelist}
