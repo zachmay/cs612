@@ -1,0 +1,163 @@
+\section{Monads}
+
+Consider the following code in a Java-like language:
+
+\begin{lstlisting}
+String emailDomain = user.getContactInfo()
+                         .getEmailAddress()
+                         .getDomain();
+\end{lstlisting}
+
+We have several domain objects:
+
+\begin{notelist}
+    \item \code{User}, which has method \code{getContactInfo()} that returns the user's contact information with the type 
+    \item \code{ContactInfo}, which as a method \code{getEmailAddress()} that returns the associated email address with type
+    \item \code{EmailAddress}, which has a method \code{getDomain()} which returns the the domain portion of that email address as a \code{String}.
+\end{notelist}
+
+Now suppose that a \code{User}'s \code{ContactInfo} is optional so that \code{getContactInfo()} might return \code{null}. Likewise,
+a \code{ContactInfo} record's \code{EmailAddress} is optional so that \code{getEmailAddress()} might return \code{null}.
+
+That makes the above code snippet dangerous. The \code{getEmailAddress()} and \code{getDomain()} calls could be performed on null
+references, causing a \code{NullPointerException}. If uncaught, the program crashes.
+
+We could try this:
+
+\begin{lstlisting}
+String emailDomain;
+ContactInfo contactInfo;
+EmailAddress emailAddress;
+
+contactInfo = user.getContactInfo();
+
+if ( contactInfo != null )
+{
+    emailAddress = contactInfo.getEmailAddress();
+
+    if ( emailAddress != null )
+    {
+        emailDomain = emailAddress.getDomain();
+    }
+    else
+    {
+        emailDomain = null;
+    }
+}
+else
+{
+    emailDomain = null;
+}
+\end{lstlisting}
+
+We have managed to propagate possible \code{null} values through the chain of method calls, but at the cost of a great deal of 
+boilerplate code.
+
+Of course, we have already seen how Haskell's \code{Maybe} type lets us encode the possibility of \code{null}-like values
+explicitly. Suppose we have analagous Haskell types and functions. The above code translates to something like:
+
+\begin{lstlisting}
+userEmailDomain :: User -> Maybe String
+userEmailDomain user = case getContactInfo user of
+    Nothing          -> Nothing
+    Just contactInfo -> case getEmailAddress contactInfo of
+        Nothing    -> Nothing
+        Just email -> getDomain email
+\end{lstlisting}
+
+Although we are now explicit about the possibility of a null result, we have not really addressed the issue of boilerplate.
+If we had to chain together even more calls, our code would quickly stair-step right off the screen.
+
+We can see a pattern, however. When we apply \code{getContactInfo} to \code{user}, we do a pattern match. If we got an
+actual value (the \code{Just} case), we take that value and pass it on to the \code{getEmailAddress} call. In the \code{null}
+case, though, we short-circuit the chain of function calls and just return \code{Nothing}. The same strategy is used when
+we try to pass the result of \code{getEmailAddress} into \code{getDomain}.
+ 
+We can generalize this pattern:
+
+\begin{lstlisting}
+chainMaybe :: Maybe a -> (a -> Maybe b) -> Maybe b
+Nothing  `chainMaybe` f = Nothing
+(Just x) `chainMaybe` f = fx
+\end{lstlisting}
+
+Note: Here we juse backticks around the function name to cause Haskell treat the function like an infix operator, not unlike
+using parentheses around an infix operator causes Haskell to treat it like a regular, prefix function.
+
+Having factored out the pattern matching to handle both cases, we can rewrite our stair-stepped chain of function calls:
+
+\begin{lstlisting}
+userEmailDomain :: User -> Maybe String
+userEmailDomain user =
+(Just user) `chainMaybe` getContactInfo
+            `chainMaybe` getEmailAddress
+            `chainMaybe` getDomain
+\end{lstlisting}
+
+Now our code is as readable as the original Java chain of method calls, but with the \code{null}-safety of the clunky second attempt.
+
+\subsection{The \code{Monad} Type Class}
+
+Not surprisingly, Haskell offers a type class to describe this same pattern in polymorphic terms:
+
+\begin{lstlisting}
+class Monad m where
+    (>>=)  :: m a -> (a -> m b) -> m b
+    (>>)   :: m a -> m b -> m b
+    return :: a -> m a 
+    fail   :: String -> m a
+
+    m >> k = m >>= \_ -> k
+\end{lstlisting}
+
+\begin{notelist}
+    \item \code{(>>=)} is the monadic chaining operator. It is just a polymorphic, infix version of \code{chainMaybe}.
+    \item \code{(>>)} can be thought of as a chaining operator where the value passed into the right-hand function is simply ignored.
+          It is given a default implementation in terms of \code{(>>=)} on line 5.
+    \item \code{return} is the \code{Monad} class's general method for injecting a value into a monadic wrapper. Code that uses
+          the \code{Monad} interface cannot use specific constructors like \code{Just} on line 3 of our final \code{userEmailDomain}
+          implementation, so \code{Monad} instances implement \code{return} to define the behavior. If \code{return} sounds familiar,
+          it is because it is actually identical to \code{pure} from \code{Applicative}. We will discuss this further in a moment.
+    \item \code{fail} offers a way for \code{Monad} instances to short-circuit evaluation when a computation has failed.
+\end{notelist}
+
+\subsection{\code{Monad} and \code{Applicative}}
+
+\begin{notelist}
+    \item Applicative is actually a superclass of Monad
+    \item But only very recently has that relationship been codified in the actual definition of Monad
+    \item (what version?)
+\end{notelist}
+
+\subsection{The \code{Maybe} Monad}
+
+\begin{notelist}
+    \item Walk through instance definitions
+\end{notelist}
+
+\subsection{The List Monad}
+
+\begin{notelist}
+    \item Lists as non-deterministic values -> List monad as non-deterministic computations
+    \item Walk through instance definitions (concatMap)
+    \item Describe how userEmailDomain behaves if written as generic monadic operation and applied in list monad.
+\end{notelist}
+
+\subsection{\code{do}-Notation}
+
+\begin{notelist}
+    \item Describe do-notation syntax, syntactic sugar
+    \item Left-arrow binding
+    \item Desugaring do-notation
+\end{notelist}
+
+\subsection{The \code{IO} Monad}
+
+\begin{notelist}
+    \item Describe IO monad as mechanism for definining impure computations in a pure language
+    \item IO values aren't "flagged" values, but lazy descriptions of computations that go out and get values from
+          the outside world when finally executed.
+    \item Examples
+\end{notelist}
+
+
