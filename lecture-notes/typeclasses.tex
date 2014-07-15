@@ -1,15 +1,15 @@
-\section{Ad-Hoc Polymorphism with Typeclasses}
+\section{Ad-Hoc Polymorphism with Type Classes}
 
 \begin{notelist}
     \item At the machine level, adding two integers is quite a different operation from
           adding two floating-point numbers. High-level languages, in an effort to hide
-          this detail, \textit{overload} the semantics of the addition operator to support 
+          this detail, \textbf{overload} the semantics of the addition operator to support 
           these distinct operations using the same operator. 
 
     \item In a strongly-typed language like Haskell, what might the type of \code{(+)} be?
     \begin{notelist}
         \item In Haskell, infix binary operators are just syntactic sugar for functions
-              of two arguments. When referring to binary operators outside of their
+              of two parameters. When referring to binary operators outside of their
               normal infix notation, Haskell requires them to be surrounded by parentheses.
     \end{notelist}
 
@@ -18,7 +18,7 @@
           of many different numeric types.
 
     \item \code{a -> a -> a} seems promising: two operands and a result, all of the same type. However,
-          this type signature \textit{unifies} with \code{TravelDetails -> TravelDetails -> TravelDetails}
+          this type signature \textbf{unifies} with \code{TravelDetails -> TravelDetails -> TravelDetails}
           and addition of that type does not make sense.
 
     \item What happens if we ask the Haskell compiler to infer the type of \code{(+)}?
@@ -29,34 +29,34 @@
         \item \code{:t (+)} yields the inferred type: \code{(Num a) => a -> a -> a}.
     \end{notelist}
 
-    \item \code{(Num a) => ...} is a \textit{class constraint} on the type signature that
+    \item \code{(Num a) => ...} is a \textbf{class constraint} on the type signature that
           follows the \code{=>}. 
 
     \item Normally, a free type variable in a type signature can be unified with any type at all.
     
     \item A class constraint on a type variable restricts the types that it can be unified with
-          to types that are \textit{instances} of the named \textit{type class}.
+          to types that are \textbf{instances} of the named \textbf{type class}.
 
     \item So \code{(+) :: (Num a) => a -> a -> a} says that \code{(+)} is a function of
-          two operands and result all of some type \code{a} \textit{where \code{a} is
-          an instance of the type class \code{Num}}.
+          two operands and result all of some type \code{a} where \code{a} is
+          an instance of the type class \code{Num}.
 
-    \item A type class acts a bit like a \textit{interface} in object-oriented programming.
+    \item A type class acts a bit like a \textbf{interface} in object-oriented programming.
           It acts as a contract: any type that is an instance of a type class must implement 
           certain methods to qualify.
 
     \item The terminology may be a bit confusing:
     \begin{notelist}
-        \item In an OO language, an object is an \textit{instance} of a \textit{class} which
-              might \textit{implement} an \textit{interface}.
-        \item In Haskell, a value \textit{has} a \textit{type} which might be an \textit{instance}
-              of a \textit{type class}.
+        \item In an OO language, an object is an instance of a class which
+              might implement an interface.
+        \item In Haskell, a value has a type which might be an instance
+              of a type class.
     \end{notelist}
 \end{notelist}
 
 \section{Basic Typeclasses from The Haskell Prelude}
 
-Haskell offers quite a bit of functionality in its standard library. In particular, the \textit{Prelude},
+Haskell offers quite a bit of functionality in its standard library. In particular, the \textbf{Prelude},
 the set of type and function definitions imported automatically into every program, defines 
 
 One of the most basic typeclasses is \code{Eq}, consisting of types that implement an equality-testing
@@ -91,7 +91,7 @@ operation. Here is how it is defined:
           complain if neither is implemented.
 
     \item Because we can define default implementations, type classes are actually more like
-          \textit{abstract classes} in OO languages.
+          \textbf{abstract classes} in OO languages.
 \end{notelist}
 
 Typeclasses can themselves have class constraints. Here is the definition of \code{Ord}, which describes
@@ -147,7 +147,7 @@ have glossed over. Full details are available in \cite[section 6.4]{haskell98}.
 
 \section{Creating New Typeclass Instances}
 
-Haskell typeclasses are \textit{open}, meaning that we can define new instances of typeclasses defined in the
+Haskell typeclasses are \textbf{open}, meaning that we can define new instances of typeclasses defined in the
 Prelude or elsewhere.
 
 Let's see how we can implement some of the Prelude's basic typeclasses for a simple type.
@@ -185,8 +185,8 @@ instance Show Section where
           matches any value, so any case not matched by the first three equations will get caught
           by the fourth and will return \code{False}.
     \item We define an \code{Ord} instance by enumerating the ways in which \code{Section} values
-          can be ordered. The first equation uses a \textit{guard}: \code{x} and \code{y} will match
-          any values, but the match is only successful if the \textit{guard expression} evaluates
+          can be ordered. The first equation uses a \textbf{guard}: \code{x} and \code{y} will match
+          any values, but the match is only successful if the \textbf{guard expression} evaluates
           to \code{True}.
     \item The \code{Show} instance is trivial: we simpliy define a string value to return for each
           of \code{Section}'s three data constructors.
@@ -218,7 +218,7 @@ instance Eq S where
           each pair of constituent values are equal.
 \end{notelist}
 
-In fact, Haskell offers the ability to \textit{derive} typeclass instances, and not just for 
+In fact, Haskell offers the ability to \textbf{derive} typeclass instances, and not just for 
 \code{Eq}.
 
 \begin{lstlisting}

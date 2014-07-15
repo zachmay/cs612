@@ -118,10 +118,14 @@ class Monad m where
           the \code{Monad} interface cannot use specific constructors like \code{Just} on line 3 of our final \code{userEmailDomain}
           implementation, so \code{Monad} instances implement \code{return} to define the behavior. If \code{return} sounds familiar,
           it is because it is actually identical to \code{pure} from \code{Applicative}. We will discuss this further in a moment.
-    \item \code{fail} offers a way for \code{Monad} instances to short-circuit evaluation when a computation has failed.
+    \item \code{fail} offers a way for \code{Monad} instances to short-circuit evaluation when a computation has failed. Use of 
+          \code{fail} is discouraged in general because the \code{IO} monad implements \code{fail} by raising a fatal error.
 \end{notelist}
 
 \subsection{\code{Monad} and \code{Applicative}}
+
+We mentioned before that \code{return} and \code{pure} were basically identical. In fact, conceptually,
+\code{Applicative} is a superclass of \code{Monad}.
 
 \begin{notelist}
     \item Applicative is actually a superclass of Monad

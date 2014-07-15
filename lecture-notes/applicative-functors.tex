@@ -24,19 +24,19 @@ maybeApplyToMaybe (Just f) (Just x) = Just \$ f x
 There are three cases:
 
 \begin{notelist}
-    \item Line 2: When we get no function to apply, the argument doesn't matter: the result is \code{Nothing}.
-    \item Line 3: When we get no argument to apply the function to, the function doesn't matter: the result is \code{Nothing}.
-    \item Line 4: When we actually get a function and an argument, we can unwrap them from their \code{Maybe} wrapper,
-          apply the function to the argument, and return the result wrapped back up.
+    \item Line 2: When we get no function to apply, the parameter does not matter: the result is \code{Nothing}.
+    \item Line 3: When we get no parameter to apply the function to, the function does not matter: the result is \code{Nothing}.
+    \item Line 4: When we actually get a function and an parameter, we can unwrap them from their \code{Maybe} wrapper,
+          apply the function to the parameter, and return the result wrapped back up.
 \end{notelist}
 
-What happens if we want to use a function with two or more arguments in this way? We don't actually have to write any more
+What happens if we want to use a function with two or more parameter in this way? We do not actually have to write any more
 code: Haskell's default of curried functions gives us native partial application of functions and \code{maybeApplyToMaybe}
 gets that for free.
 
 Say we have a function \code{add :: Integer -> Integer -> Integer}. The expression \code{add 5} has type \code{Integer -> Integer}.
 
-If we look back at line 4 of the previous example, we apply our unwrapped function to the unwrapped argument, and return the
+If we look back at line 4 of the previous example, we apply our unwrapped function to the unwrapped parameter, and return the
 result wrapped back up. Since the partial application \code{add 5} returns a function of type \code{Integer -> Integer}, 
 \code{maybeApplyToMaybe (Just add) (Just 5)} returns a value of type \code{Maybe (Integer -> Integer)}. 
 
@@ -44,7 +44,7 @@ result wrapped back up. Since the partial application \code{add 5} returns a fun
 
 We saw in the previous section that \code{map} for lists and \code{applyToMaybe} shared a common pattern, which led us to the
 general \code{Functor} type class. The same idea works here, and the resulting type class is called \code{Applicative}, short for
-\textit{applicative functor}.
+\textbf{applicative functor}.
 
 \begin{lstlisting}
 class Functor f => Applicative f where
@@ -73,14 +73,14 @@ In general, \code{(<*>)} is the function (used infix like an operator) that take
 \code{f} and a value in the same context and handles the plumbing of unwrapping the function and the value, applying the function
 to the value, and returning the result wrapped back up in the \code{f} context.
 
-We haven't said much about the other half of the \code{Applicative} class, but it's quite simple and the type is very telling.
+We have not said much about the other half of the \code{Applicative} class, but it is quite simple and the type is very telling.
 What makes sense for the type \code{a -> f a}?
 
-We're getting a value of any type and returning a value of that type in the context described by \code{f}. Without knowing
-anything about the type \code{a} of the argument, we can't modify it in any way. So, from the type alone, we can surmise that
+We are getting a value of any type and returning a value of that type in the context described by \code{f}. Without knowing
+anything about the type \code{a} of the parameter, we cannot modify it in any way. So, from the type alone, we can surmise that
 \code{pure} probably injects a value into the context described by \code{f} in some default way.
 
-What might \code{Maybe}'s implementation of \code{pure} look like? It's literally just \code{Just}!
+What might \code{Maybe}'s implementation of \code{pure} look like? It is literally just \code{Just}!
 
 \subsection{Building a Better \code{fmap}}
 
@@ -91,12 +91,12 @@ Consider the operator \code{(<\$>) :: (a -> b) -> f a -> f b} provided by the \c
 It that takes a function, injects it into \code{f} with \code{pure}, and then uses \code{(<*>)} to apply it to a value
 in \code{f}. 
 
-The type of \code{(<\$>)} should look familiar: it's the same type as \code{fmap}. In fact, assuming both \code{Functor}
+The type of \code{(<\$>)} should look familiar: it is the same type as \code{fmap}. In fact, assuming both \code{Functor}
 and \code{Applicative} laws (which we will see in a moment) the two are synonyms: \code{g <\$> pure x == fmap g \$ pure x}.
 
-What we really get out of \code{Applicative} is a \textit{better} version of \code{fmap}.
+What we really get out of \code{Applicative} is a better version of \code{fmap}.
 
-Suppose we called \code{fmap (+) (Just 3)}. This isn't an error, we will just partially apply \code{(+)} to the wrapped
+Suppose we called \code{fmap (+) (Just 3)}. This is not an error, we will just partially apply \code{(+)} to the wrapped
 value \code{3} and get back basically \code{Just (3+)}, a function value inside a \code{Maybe} context, exactly where 
 we were at the beginning of this section.
 
@@ -136,24 +136,24 @@ we discussed the \code{Functor} laws.
     \item \textbf{Functor Instance}: \code{fmap g x == pure g <*> x}
 \end{notelist}
 
-The \textit{identity law} can be thought of as putting an upper bound on what can actually happen inside the plumbing of
+The \textbf{identity law} can be thought of as putting an upper bound on what can actually happen inside the plumbing of
 the \code{Applicative} implementation. If that plumbing does anything that fails to preserve identity, it
 is not a proper \code{Applicative}.
 
-The intuition behind the \textit{homomorphism law} is that these operations are just lifting function application into
+The intuition behind the \textbf{homomorphism law} is that these operations are just lifting function application into
 \code{Applicative} contexts. If we have a function \code{f} and a value \code{x}, inject each into the context
-via \code{pure} and ``apply'' them via \code{(<*>)}, we should get the same thing as if we had injected
+via \code{pure} and apply them via \code{(<*>)}, we should get the same thing as if we had injected
 \code{f x} into the context directly.
 
-The \textit{interchange law} is a bit tricky. To start, remember that the \code{(\$)} operator is just function application
+The \textbf{interchange law} is a bit tricky. To start, remember that the \code{(\$)} operator is just function application
 with a very low precedence. So \code{(\$ y)} is a function that takes a function and applies it to \code{y}.
 What the interchange law is trying to express is that the order in which we evaluate the function and its 
 parameter should not matter in a proper \code{Applicative} instance.
 
-We can think of the \textit{composition law} as formalizing an associative property for \code(<*>) in terms 
+We can think of the \textbf{composition law} as formalizing an associative property for \code(<*>) in terms 
 of Haskell's standard function composition operator \code{(.)}.
 
-Finally, the \textit{functor instance law} describes how an \code{Applicative} instance should behave relative to
+Finally, the \textbf{functor instance law} describes how an \code{Applicative} instance should behave relative to
 its \code{Functor} instance and is required for the equivalence between \code{(<\$>)} and \code{fmap} to hold for
 an \code{Applicative} instance.
 
@@ -161,8 +161,8 @@ an \code{Applicative} instance.
 
 \subsection{\code{Applicative} and Lists}
 
-When we looked at \code{Functor}s, our two canonical examples were \code{Maybe} and lists, but we haven't really mentioned
-lists yet in this section. The problem isn't that lists aren't \code{Applicative}s, it's that there are two perfectly
+When we looked at \code{Functor}s, our two canonical examples were \code{Maybe} and lists, but we have not really mentioned
+lists yet in this section. The problem is not that lists are not \code{Applicative}s, but that there are two perfectly
 reasonable ways to implement the \code{Applicative} instance for lists!
 
 Lists are a context that support zero or more values. So suppose we had a list of functions and wanted to apply them
@@ -192,10 +192,10 @@ instance Applicative [] where
 \begin{notelist}
     \item \code{pure} injects a value into the list context by creating a singleton list containing that value.
     \item \code{(<*>)} applies each function from the left-hand list to each value in the right-hand list as discussed. It does
-          so via Haskell's \textit{list comprehension} syntax.
+          so via Haskell's \textbf{list comprehension} syntax.
 \end{notelist}
 
-What about the pair-wise version of \code{Applicative} for lists? Due to language constraints, the list type can't have
+What about the pair-wise version of \code{Applicative} for lists? Due to language constraints, the list type cannot have
 two implementations for the same type class. Instead, Haskell offers type called \code{ZipList} that wraps a normal
 list but offers a different \code{Applicative} instance:
 
@@ -209,7 +209,7 @@ instance Applicative ZipList where
 
 \begin{notelist}
     \item The \code{newtype} keyword defines a type synonym that is checked at compile time but discarded so there is no
-          run-time overhead. A \code{ZipList} can never be used as a normal list, but there's no additional overhead.
+          run-time overhead. A \code{ZipList} can never be used as a normal list, but there is no additional overhead.
           Record syntax is used here to automatically create a function \code{getZipList} to translate normal lists to
           \code{ZipList}s.
     
@@ -217,7 +217,7 @@ instance Applicative ZipList where
           the function is \code{(\$)}, which we have seen previously. So the \code{ZipList} instance of \code{Applicative}
           is implementing pair-wise application.
 
-    \item Because \code{zipWith} truncates the result to the length of the shorter of its two arguments, it makes sense
+    \item Because \code{zipWith} truncates the result to the length of the shorter of its two parameter, it makes sense
           for \code{pure} to inject values into the \code{ZipList} context by creating an infinite list via \code{repeat}.
 
     \item If we used the same \code{pure} implementation as normal lists, \code{pure g <*> [1..] == [g 1]} and the functor

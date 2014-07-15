@@ -3,16 +3,18 @@
 \item Haskell is a \textbf{statically-typed}, \textbf{non-strict}, \textbf{pure} \textbf{functional}
       programming language.
 	\begin{notelist}
-	\item \textbf{Functional:} Conceptually, computation via the application of functions to arguments rather than sequential instructions
-          manipulating values in memory. Functions are first-class values.
-	\item \textbf{Pure:} The functions in question are more like mathematical functions than ``procedures''. They map values in an input domain
-          to values in an output domain. Pure functions have no ``side effects''. This is a big win for reasoning about and testing our code.
-	\item \textbf{Non-strict:} By default, Haskell uses a ``lazy'' evaluation strategy. Expressions do not need to be evaluated until the 
-          results are needed. For example, Haskell can cleanly represent infinite lists because the language never tries to fully evaluate it.
-    \item \textbf{Statically-typed:} The type of very expression is known at compile time, preventing run-time errors caused by type
-          incompatibilities. This prevents things like Java's \code{NullPointerException}, because a function that claims it returns
-          a value of a specific type has to live up to that promise and returning the Haskell equivalent of \code{null} is a compile-time
-          type error. Additionally, Haskell makes use of a technique called \textit{type inference} to figure out the types of most things
+	\item \textbf{Functional:} Conceptually, computation proceeds via the application of functions to parameters rather than by 
+          sequential instructions manipulating values in memory. Functions are first-class values.
+	\item \textbf{Pure:} The functions in question are more like mathematical functions than procedures. They map values in an input domain
+          to values in an output domain. Pure functions have no side effects. These features are valuable when reasoning about
+          and testing our code.
+	\item \textbf{Non-strict:} By default, Haskell uses a lazy evaluation strategy. Expressions do not need to be evaluated until the 
+          results are needed. For example, Haskell can cleanly represent infinite lists because the language only evaluates such
+          an expression as needed.
+    \item \textbf{Statically-typed:} The type of every expression is known at compile time, preventing run-time errors caused by type
+          incompatibilities. This feature prevents things like Java's \code{NullPointerException}, because a function that claims it returns
+          a value of a specific type must live up to that promise. Returning the Haskell equivalent of \code{null} is a compile-time
+          type error. Additionally, Haskell makes use of a technique called \textbf{type inference} to figure out the types of most things
           without needing explicit type annotations.
 	\end{notelist}
 \end{notelist}
@@ -31,37 +33,37 @@ printSquares =
 \end{lstlisting}
 
 \begin{notelist}
-    \item The type signature in line 1 describes a function with two arguments: an \code{Integer} and a list
+    \item The type signature in line 1 describes a function with two parameters: an \code{Integer} and a list
           of \code{Integer}s. It returns an \code{Integer}. In general, the type after the last \code{->}
-          is the return value, and the others are the arguments.
-    \item Haskell's type inference would actually figure out a more general type than what we provided in the type
-          annotation on line 1. Haskell programmers usually include type annotations as a form of machine-checked
+          is the return value, and the others are the parameters.
+    \item Haskell would actually infer a more general type than what we see in the type annotation 
+          on line 1. Haskell programmers usually include type annotations as a form of machine-checked
           documentation.
     \item Haskell functions are defined with an equational syntax as seen in lines 2-3: \code{sumSquares}
-          applied to the arguments \code{count} and \code{numbers} is equal to the expression on the
+          applied to the parameters \code{count} and \code{numbers} is equal to the expression on the
           right-hand side of the equation.
-    \item Line 3 shows us several examples of \textit{function application}. The parentheses here are for grouping
-          only. The notation for function application is very lightweight.
+    \item Line 3 shows us several examples of \textbf{function application}. The notation for function application
+          is lightweight: simple juxtaposition of terms. The parentheses here are for grouping only. 
     \item Working from the inside out, \code{map} applies a function to each element in a list, producing a new 
           new list containing the resulting values.
-    \item \code{(\string^2)} is called a \textit{section}, a shorthand for an anonymous function whose argument
-          ``fills in the blank'' for a binary operator, exponentiation in this case. So \code{map (\string^2)}
+    \item \code{(\string^2)} is called a \textbf{section}, a shorthand for an anonymous function whose parameters
+          fills in the blank for a binary operator, exponentiation in this case. So \code{map (\string^2)}
           transforms a list of numbers into their squares.
     \item Given a number $n$ and a list, \code{take} returns the first $n$ items of the list, or the whole list
           if it has fewer than $n$ elements. \code{sum} takes a list of numbers and returns the sum.
-    \item Lines 5-7 define another function, \code{printSquares}. It takes no arguments, and its return type, \code{IO ()},
+    \item Lines 5-7 define another function, \code{printSquares}. It takes no parameters, and its return type, \code{IO ()},
           is quite interesting.
     \item Look back at the type \code{[Integer]}. The list type \code{[]} is a
-          \textit{parameterized} type. That is, ``list'' itself is not a concrete type, but a \textit{type constructor}.
+          \textbf{parameterized} type. That is, list itself is not a concrete type, but a \textbf{type constructor}.
           We need another type, the parameter, to create a concrete type. Similarly, \code{IO} is a type constructor.
-    \item Here we instantiate it with the type \code{()}, the \textit{unit type} with only a single instance, also
-          written as \code{()}. The type \code{IO ()} represents an \textit{I/O action} with no ``return''
+    \item Here we instantiate \code{IO} with the type \code{()}, the \textbf{unit type} with only a single value, also
+          written as \code{()}. The type \code{IO ()} represents an \textbf{I/O action} with no interesting return
           value. The \code{IO} type constructor is the technique Haskell uses to perform I/O, inherently impure,
-          in a world of pure functions, via a far more general abstraction called the \textit{monad}.
+          in a world of pure functions, via a far more general abstraction called the \textbf{monad}.
     \item Consider the expression \code{[1..]}. This expression represents the infinite list of positive
-          integers. Because Haskell is lazy, though, merely describing the value is not enough to force the run-time try
-          evaluate the entire thing. In fact, in this case, evaluation of \code{[1..]} is only forced by
-          \code{print} asking for the value produced by \code{sum}, which demands the values yielded by
+          integers. However, because Haskell evaluates expressions lazily, merely describing the value is not enough to
+          force the run-time to evaluate the entire thing. In fact, in this case, evaluation of \code{[1..]} is only
+          forced by \code{print} asking for the value produced by \code{sum}, which demands the values yielded by
           \code{take count}, and so on, on demand.
     \item Notice the \code{\$} in line 7. Pronounced ``applied to'', it is an operator with extremely low
           precedence that breaks up the very high precedence of function application, allowing us to avoid nesting
