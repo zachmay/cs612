@@ -23,7 +23,7 @@
 \section{A Sample Program}
 
 \begin{lstlisting}
-sumSquares :: Integer -> [Integer] -> Integer
+sumSquares :: Int -> [Int] -> Int
 sumSquares count numbers =
     sum (take count (map (^2) numbers))
 
@@ -33,8 +33,8 @@ printSquares =
 \end{lstlisting}
 
 \begin{notelist}
-    \item The type signature in line 1 describes a function with two parameters: an \code{Integer} and a list
-          of \code{Integer}s. It returns an \code{Integer}. In general, the type after the last \code{->}
+    \item The type signature in line 1 describes a function with two parameters: an \code{Int} and a list
+          of \code{Int}s. It returns an \code{Int}. In general, the type after the last \code{->}
           is the return value, and the others are the parameters.
     \item Haskell would actually infer a more general type than what we see in the type annotation 
           on line 1. Haskell programmers usually include type annotations as a form of machine-checked
@@ -53,7 +53,7 @@ printSquares =
           if it has fewer than $n$ elements. \code{sum} takes a list of numbers and returns the sum.
     \item Lines 5-7 define another function, \code{printSquares}. It takes no parameters, and its return type, \code{IO ()},
           is quite interesting.
-    \item Look back at the type \code{[Integer]}. The list type \code{[]} is a
+    \item Look back at the type \code{[Int]}. The list type \code{[]} is a
           \textbf{parameterized} type. That is, list itself is not a concrete type, but a \textbf{type constructor}.
           We need another type, the parameter, to create a concrete type. Similarly, \code{IO} is a type constructor.
     \item Here we instantiate \code{IO} with the type \code{()}, the \textbf{unit type} with only a single value, also
