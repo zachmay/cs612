@@ -1,6 +1,6 @@
 \section{Monads}
 
-Consider the following code in a Java-like language:
+Consider the following Java-like pseudocode:
 
 \begin{lstlisting}
 String emailDomain = user.getContactInfo()
@@ -111,7 +111,8 @@ class Monad m where
 \end{lstlisting}
 
 \begin{notelist}
-    \item \code{(>>=)} is the monadic chaining operator. It is just a polymorphic, infix version of \code{chainMaybe}.
+    \item \code{(>>=)} is the monadic chaining operator. It is just a polymorphic, infix equivalent of \code{chainMaybe}, which is
+          how \code{Maybe}'s implementation of \code{(>>=)} is defined.
     \item \code{(>>)} can be thought of as a chaining operator where the value passed into the right-hand function is simply ignored.
           It is given a default implementation in terms of \code{(>>=)} on line 5.
     \item \code{return} is the \code{Monad} class's general method for injecting a value into a monadic wrapper. Code that uses
@@ -119,39 +120,186 @@ class Monad m where
           implementation, so \code{Monad} instances implement \code{return} to define the behavior. If \code{return} sounds familiar,
           it is because it is actually identical to \code{pure} from \code{Applicative}. We will discuss this further in a moment.
     \item \code{fail} offers a way for \code{Monad} instances to short-circuit evaluation when a computation has failed. Use of 
-          \code{fail} is discouraged in general because the \code{IO} monad implements \code{fail} by raising a fatal error.
+          \code{fail} is discouraged in general because some \code{Monad}s, including \code{IO}, implement \code{fail} by raising a fatal error.
+          \code{Maybe}'s implementation of \code{fail} returns \code{Nothing}.
 \end{notelist}
 
 \subsection{\code{Monad} and \code{Applicative}}
 
 We mentioned before that \code{return} and \code{pure} were basically identical. In fact, conceptually,
-\code{Applicative} is a superclass of \code{Monad}.
+\code{Applicative} is a superclass of \code{Monad}. In fact, the hierarchy from \code{Functor} to \code{Applicative}
+to \code{Monad} represents progressively more flexible operations on with values inside some context.
 
-\begin{notelist}
-    \item Applicative is actually a superclass of Monad
-    \item But only very recently has that relationship been codified in the actual definition of Monad
-    \item (what version?)
-\end{notelist}
+However, while \code{Functor} and \code{Monad} were part of the Haskell standard library as described in the Haskell 98 standard \cite{haskell98},
+applicative functors were not introduced until 2008 in the paper \emph{Applicative Programming with Effects} \cite{applicative} by McBride and
+Paterson.
 
-\subsection{The \code{Maybe} Monad}
+Altering the standard library's definition of \code{Monad} to include an \code{Applicative} class constraint would break existing user-defined
+\code{Monad} instances that did not offer an \code{Applicative} implementation. However, a proposal to make this change is likely to be implemented
+in the near future. For that reason, newer versions of GHC will issue warnings when \code{Monad} instances are declared without accompanying
+\code{Applicative} instances. 
 
-\begin{notelist}
-    \item Walk through instance definitions
-\end{notelist}
+In the mean time, all the \code{Monad} instances we will discuss have accompanying \code{Applicative}.
 
 \subsection{The List Monad}
 
+Now that we have seen the basic definition of the \code{Monad} type class and seen a simple instance in \code{Maybe}, we
+can look at a more complex example: lists.
+
+Recall that lists can be viewed as simple containers or as computational contexts supporting non-deterministic values.
+The list monad is based on this non-deterministic value perspective. 
+
 \begin{notelist}
-    \item Lists as non-deterministic values -> List monad as non-deterministic computations
-    \item Walk through instance definitions (concatMap)
-    \item Describe how userEmailDomain behaves if written as generic monadic operation and applied in list monad.
+    \item The \code{Functor} instance for lists lifted function application into the domain of non-deterministic values.
+    \item The \code{Applicative} instance for lists (i.e., not the \code{ZipList} instance) introduces the ability to
+          apply non-deterministic function values to non-deterministic values.
+    \item Finally, we can think of the \code{Monad} instance for lists as lifting computation in general into the
+          domain of non-deterministic values.
 \end{notelist}
+
+Here is how the list instance of \code{Monad} is defined:
+
+\begin{lstlisting}
+instance Monad [] where  
+    return x = [x]  
+    xs >>= f = concat (map f xs)  
+    fail _   = []  
+\end{lstlisting}
+
+\begin{notelist}
+    \item \code{return} is, again, equivalent to \code{pure} and simply returns a singleton list containing the given element.
+    \item \code{fail} returns the empty list.
+    \item \code{(>>=)} first maps \code{f :: a -> [a]} over \code{xs} yielding a value of type \code{[[a]]}, i.e., a list of lists.
+          Then \code{concat :: [[a]] -> [a]} concatenates each of those lists into a single list. For example,
+          \code{concat [[1, 2], [3, 4]] == [1, 2, 3, 4]}.
+\end{notelist}
+
+Suppose we wanted to work with a square root function that non-deterministically returned both the postive and negative
+square roots of its parameter:
+
+\begin{lstlisting}
+sqrt' :: Double -> [Double]
+sqrt' x = [sqrt x, negate $ sqrt x]
+\end{lstlisting}
+
+Now, when we evaluate \code{[4.0, 9.0] >>= sqrt'}, we map \code{sqrt'} over the list, yielding \code{[[2.0, -2.0], [3.0, -3.0]]}. 
+Then \code{concat} is applied, yielding \code{[2.0, -2.0, 3.0, -3.0]}.
+
+Suppose we try to evaluate \code{[16.0, 81.0] >>= sqrt' >>= sqrt'} (note that \code{(>>=)} is left associative) so we can simplify
+this expression:
+
+\begin{lstlisting}
+([16.0, 81.0] >>= sqrt') >>= sqrt' 
+== [4.0, -4.0, 9.0, -9.0] >>= sqrt'
+== [2.0, -2.0, NaN, NaN, 3.0, -3.0, NaN, NaN]
+\end{lstlisting}
+
+When \code{sqrt'} is applied to one of the negative intermediate values, the result is \code{NaN}, since we cannot take the
+real square root of a negative. We would like to extend our non-deterministic square root function to deal with that case.
+
+\begin{lstlisting}
+sqrt'' :: Double -> [Double]
+sqrt'' x | x >= 0.0  = [sqrt x, negate $ sqrt x]
+         | otherwise = []
+\end{lstlisting}
+ 
+We use \textit{guard clauses} to deal with the two cases. If the parameter is non-negative, yield two possible values, otherwise,
+yield no values at all. 
+
+Now, if we evaluate \code{[16.0, 81.0] >>= sqrt'' >>= sqrt''} we get \code{[2.0, -2.0, 3.0, -3.0]}. From the perspective of non-deterministic
+values, these are the values that could result from applying \code{sqrt''} twice to the non-deterministic value \code{[16.0, 81.0]}.
+When applying \code{sqrt''} to negative values, the return value of \code{[]} represents a path of computation that has failed, and no
+trace of it shows up in the final result.
+
+\subsection{The \code{Monad} Laws}
+
+Like \code{Functor} and \code{Applicative}, there are laws that govern how \code{Monad} instances should behave:
+
+\begin{notelist}
+    \item \textbf{Left identity}: \code{return a >>= f == f a}
+    \item \textbf{Right identity}: \code{m >>= return == m }
+    \item \textbf{Associativity}: \code{(m >>= f) >>= g == m >>= (\\x -> f x >>= g x)}
+\end{notelist}
+
+The left and right identity laws describe are primarily concerned with the neutral behavior of \code{return}. The associativity
+law, with the behavior of sequences of monadic operations linked together with \code{(>>=)}.
+
+Interestingly, none of these laws look much like identity or associativity as we might recall from algebra. However, if we introduce
+a new (but related) operator, they do:
+
+\begin{lstlisting}
+(>=>) :: Monad m => (a -> m b) -> (b -> m c) -> a -> m c
+(f >=> g) x = f x >>= (\y -> g y)
+\end{lstlisting}
+
+The operator \code{(>=>)} acts like the standard function composition operator \code{(.) :: (a -> b) -> (b -> c) -> a -> c}
+and if we rewrite the above laws in terms of \code{(>=>)}, the names look far more appropriate:
+
+\begin{notelist}
+    \item \textbf{Left identity}: \code{return >=> f == f}
+    \item \textbf{Right identity}: \code{f >=> return == f }
+    \item \textbf{Associativity}: \code{(f >=> g) >=> h == f >=> (g >=> h)}
+\end{notelist}
+
+\subsection{The \code{State} Monad}
+
+In the imperative programming paradigm, our programs essentially operate by mutating global state. To swap the values of two variables 
+\code{a} and \code{b}, we might store the value in \code{a} into a temporary variable \code{t}, store the value in \code{b} into \code{a},
+then store the value in \code{t} into \code{b}. Our programs just shuffle bit patterns around in memory.
+
+In the end, Haskell programs are doing the same thing, but we are interested in expressing our programs in terms of higher-level 
+constructs. However, the mutating state is a powerful tool and the \code{State} monad allows us to do emulate this style of
+programming by providing the framework through which a value of some type can be passed through a sequence of monadic operations,
+possibly being replaced along the way. We do not actually write values to locations in memory, but the end result is similar, while
+being built on the same monadic abstraction we have looked at so far.
+
+Here is the definition of the \code{State} type and its \code{Monad} instance.
+
+\begin{lstlisting}
+newtype State s a = State { runState :: s -> (a,s) }  
+
+instance Monad (State s) where  
+    return x = State $ \s -> (x,s)  
+    (State h) >>= f = State $ \s -> let (a, newState) = h s  
+                                        (State g) = f a  
+                                    in  g newState 
+\end{lstlisting}
+
+The \code{State} type constructor takes two type parameters: \code{s} is the type of the state value and \code{a} is
+the result type. Just as we might call \code{Maybe Integer} an \code{Integer} value in \code{Maybe}'s context of possible
+failure, \code{State String Integer} might be referred to as an \code{Integer} value in the context of a stateful
+computation, where the state is a \code{String} value.
+
+The \code{newtype} definition of \code{State} uses Haskell's \textbf{record syntax} to created a \textbf{named field}.
+A \code{State} value is actually a wrapper around a function of type \code{s -> (a, s)}. The record syntax automatically
+creates a function \code{runState} which pulls that function out of the wrapper so that it can be applied to an initial
+state value of type \code{s}, returning the result of type \code{a} and the final state, again of type \code{s}.
+
+The \code{State} type is polymorphic in two type variables, but recall that the definition of the \code{Monad} type class
+had only a single type variable. As line 3 suggests, it might be more appropriate to think of it as the \code{State s} monad,
+with each concrete type (\code{State [Integer]}, \code{State String}, etc.) as being separate, incompatible monads that
+happen to have identical implementations.
+
+\code{State}'s implementation of \code{return} takes a value \code{x} and returns a function (wrapped with the \code{State} constructor)
+that, given any state value \code{s} returns \code{(x, s)}. We can think of the result of \code{return} in the \code{State} monad as a
+stateful computation that simply returns a value and leaves the state untouched. This is compatible with our understanding of \code{return}
+as a neutral operation that injects a value into as bare a context as possible. 
+
+The implementation of \code{(>>=)} is a bit more involved:
+
+\begin{notelist}
+    \item [Describe the types of the two operands, State h and f]
+    \item [Describe let clause, bindings for intermediate values]
+    \item [Describe the result]
+\end{notelist}
+
+[Describe an example, using [Integer] as the state type, with push and pop operations]
 
 \subsection{\code{do}-Notation}
 
 \begin{notelist}
-    \item Describe do-notation syntax, syntactic sugar
-    \item Left-arrow binding
+    \item Describe do-notation syntax, syntactic sugar, Left-arrow binding
+    \item Rewrite State example using do-notation
     \item Desugaring do-notation
 \end{notelist}
 
@@ -162,6 +310,6 @@ We mentioned before that \code{return} and \code{pure} were basically identical.
     \item IO values aren't "flagged" values, but lazy descriptions of computations that go out and get values from
           the outside world when finally executed.
     \item Examples
+    \item Describe how userEmailDomain behaves if written as generic monadic operation and applied in list monad, IO monad
 \end{notelist}
-
 
