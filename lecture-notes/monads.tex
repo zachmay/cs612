@@ -280,27 +280,170 @@ had only a single type variable. As line 3 suggests, it might be more appropriat
 with each concrete type (\code{State [Integer]}, \code{State String}, etc.) as being separate, incompatible monads that
 happen to have identical implementations.
 
-\code{State}'s implementation of \code{return} takes a value \code{x} and returns a function (wrapped with the \code{State} constructor)
-that, given any state value \code{s} returns \code{(x, s)}. We can think of the result of \code{return} in the \code{State} monad as a
-stateful computation that simply returns a value and leaves the state untouched. This is compatible with our understanding of \code{return}
-as a neutral operation that injects a value into as bare a context as possible. 
+Intuitively, a value in the \code{State} monad represents a unit of stateful computation. However, it is important to
+emphasize that such a value is fundamentally just a function. Specifically, it is a function that takes
+an initial state and performs some computation that results in a value and a new state.
 
-The implementation of \code{(>>=)} is a bit more involved:
+\code{State}'s implementation of \code{return} takes a value \code{x} and returns the simplest \code{State} context possible:
+a function that takes any initial state and returns \code{x} along with the initial state unaltered.
+
+We will now consider \code{State}'s implementation of \code{(>>=)}.
+
+The left-hand parameter of \code{(>>=)} is a \code{State} value, and we use pattern matching to bind the wrapped
+function to the identifier \code{h}.
+
+The right-hand parameter of \code{(>>=)} is a function \code{f :: a -> State s b}.
+
+We expect the result to be a \code{State} value, and indeed we see an anonymous function wrapped in the \code{State}
+constructor.
+
+The anonymous function takes a formal parameter \code{s}, the incoming initial state, and uses \code{let} to make bindings
+for some intermediate values. The function \code{h} is applied to the incoming intial state and we bind the resulting pair
+to \code{(a, newState)}. We can think of this step as forcing the evaluation of the left-hand stateful computation before
+directing the result of that computation into the function on the right-hand side.
+
+The next line binds the result of applying the right-hand side operand, \code{f}, to \code{a}, the result of the left-hand
+computation. The result of the expression \code{f a} is a \code{State} value wrapping a function, which is bound to \code{g}.
+
+Finally, our anonymous function will apply \code{g} to {newState}. 
+
+Intuitively, the \code{State} implementation of \code{(>>=)} is the plumbing for a pipeline of computations that take
+an initial state and result in a value, along with the final state. Furthermore, any of these \code{State} computations
+can be further composed in just the same way.
+
+This is a bit abstract, so an example may be helpful. This example is adapted from a very entertaining introduction
+to Haskell called \emph{Learn You a Haskell for Great Good} \cite{learnyou}.
+
+The state that we will use in our computations will be a stack, implemented as \code{[Integer]}. We will define
+\code{push} and \code{pop} operations and use them in a small sample program.
+
+\begin{lstlisting}
+type Stack = [Integer]
+
+pop :: State Stack Integer
+pop = State $ \(x:xs) -> (x, xs)
+
+push :: Integer -> State Stack ()
+push x = State $ \xs -> ((), x:xs)
+\end{lstlisting}
 
 \begin{notelist}
-    \item [Describe the types of the two operands, State h and f]
-    \item [Describe let clause, bindings for intermediate values]
-    \item [Describe the result]
+    \item In line 1, we use \code{type} to define a type synonym.
+    \item Consider the type of \code{pop}. The type signature is opaque: \code{pop} is just a stateful computation, working
+          with a stack, resulting in an Integer.
+    \item The result value is a function. It takes an initial state (our \code{Stack}) and returns a pair: the
+          result value and the updated state value. This is exactly the right sort of type signature to wrap
+          in the \code{State} constructor.
+    \item Note how pattern matching in the anonymous function definition binds the head and tail of the \code{Stack} parameter
+          to identifiers we use in the body. However, this pattern match is non-exhaustive (empty lists will not match),
+          but we will address that later. This will result in a run-time error, unfortunately. We will address this later.
+    \item \code{push} takes an \code{Integer}, the value to be pushed onto the stack, and returns a stateful computation.
+          Again, the underlying result is a function wrapped in the \code{State} constructor.
+    \item Although it looks strange, recall that \code{()} is the unit type. Its one value (also spelled \code{()}) is used when
+          we do not really care about the result value. In this case, the result of a \code{push} is irrelevant, we just want
+          the stack to get updated.
 \end{notelist}
 
-[Describe an example, using [Integer] as the state type, with push and pop operations]
+Now we can use our \code{push} and \code{pop} operations:
+
+\begin{lstlisting}
+add :: State Stack ()
+add = pop >>= (\x -> pop >>= \y -> (push (x + y)))
+
+simpleMath :: State Stack Integer
+simpleMath = push 2 >>
+             push 2 >>
+             add >>
+             pop
+
+result = runState simpleMath []
+\end{lstlisting}
+
+\begin{notelist}
+    \item We define a new operation \code{add} in terms of \code{pop} and \code{push}. In conjunction with \code{(>>=)},
+          we use the two anonymous functions to bind the results of the two \code{pop} operations before pushing their sum
+          back onto the stack.
+    \item In essence, we have extended our language of \code{Stack} operations to include a new stack-based addition operator.
+    \item Then in \code{simpleMath}, we use that language to write \code{Stack} manipulation code that has the appearance of
+          imperative code. 
+\end{notelist}
+
+In order to actually run \code{simpleMath}, we call \code{runState} on the operation we want to execute and the initial state.
+As described, \code{runState} unwraps the underlying function inside the \code{State} wrapper and that function is immediately
+applied to the initial state, giving as a result value and a final state.
 
 \subsection{\code{do}-Notation}
 
+If we look back at the definition of \code{add}, we see a mess of odd-looking operators, anonymous functions, and nested
+parentheses. That would be frustrating to deal with and Haskell offers an alternative.
+
+All monads support the use of \textbf{\code{do}-notation}, syntactic sugar that makes monadic code much more readable.
+An example:
+
+\begin{lstlisting}
+add' = do
+    x <- pop
+    y <- pop
+    push (x + y)
+
+simpleMath' = do
+    push' 2
+    push' 2
+    add'
+    pop
+\end{lstlisting}
+
+These definitions have exactly the same type and semantics as the previous implementations that used \code{(>>=)} explicitly.
+
+The Haskell compiler simplifies \code{do}-notation systematically, using the following basic patterns:
+ 
+
+\begin{table}[h]
+\begin{tabular}{c c}
+    \begin{lstlisting}
+    before = do
+        op1
+    \end{lstlisting}
+    &
+    \begin{lstlisting}
+    after = op1
+    \end{lstlisting} \\
+
+    \begin{lstlisting}
+    before = do
+        op1
+        op2
+        op3
+    \end{lstlisting}
+    &
+    \begin{lstlisting}
+    before = op1 >> 
+        do
+            op2
+            op3
+
+    \end{lstlisting} \\
+
+    \begin{lstlisting}
+    before = do
+        x <- op1
+        op2
+        op3
+    \end{lstlisting}
+    &
+    \begin{lstlisting}
+    before = op1 >> 
+        do
+            op2
+            op3
+
+    \end{lstlisting} \\
+\end{tabular}
+\end{table}
+
 \begin{notelist}
-    \item Describe do-notation syntax, syntactic sugar, Left-arrow binding
-    \item Rewrite State example using do-notation
-    \item Desugaring do-notation
+    \item Write up left-arrow de-sugaring.
+    \item Fix tables.
 \end{notelist}
 
 \subsection{The \code{IO} Monad}
