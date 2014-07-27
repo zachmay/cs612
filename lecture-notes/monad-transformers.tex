@@ -1,0 +1,61 @@
+\section{Monad Transformers}
+
+We have seen how monads describe a general framework for programming with side effects
+in an otherwise pure functional language.
+
+However, although we can use \code{IO} for input and output and \code{State} to track mutable state,
+we cannot use them together to write code that does both at the same time. We would like to be able
+to compose two monads so that we can write code that takes advantage disparate types of side effects.
+
+We will look at one solution to this problem: \textit{monad transformers}. 
+
+Consider the following problem. We want to read lines of text from the console until the user enters
+a blank line while keeping a running count the number of lines read and saving the longest line entered so far.
+
+We clearly need \code{IO} to read from the console, but updating the statistics we need seems like
+a good use case for \code{State}. Since \code{State} is not strictly necessary, we can implement
+this only using only \code{IO}:
+
+\lstinputlisting{code/io-state.hs}
+
+\begin{notelist}
+    \item Line 1 introduces a record type to track the statistics we are interested in.
+    \item Line 5 defines a function that will begin the process, starting with an initial state.
+    \item On line 8 we define a recursive \code{IO} action called \code{runStats}. It takes a \code{Stats}
+          value and yields a possibly updated \code{Stats} value.
+        \begin{notelist}
+            \item We get a line of text from the console, binding the result to the identifier \code{line}.
+            \item If the line is empty, we stop and yield the statistics gathered so far. 
+            \item In this context, we appear to be using \code{return} like we would in an imperative
+                  language. However, in Haskell, \code{return} is just a function that wraps a 
+                  value inside a monadic context and has nothing to do with terminating execution
+                  of a procedure. We only use \code{return} because we need the result of this
+                  expression to be of type \code{IO Stats}.
+            \item If the line is not empty, we recursively call \code{runStats} with updated statistics.
+        \end{notelist}
+    \item Line 15 defines a helper function that takes a \code{String} and  updates a \code{Stats} value 
+          accordingly. It increments the count and keeps the given \code{String} if it is longer. Note
+          that we are not mutating the original \code{Stats} value, only using its constituents to build
+          a new one.
+\end{notelist}
+
+This solution works, but it has the drawback that we were responsible for keeping track of the state value,
+explicitly passing it through recursive calls to \code{runStats}. We want compose \code{IO} and \code{State}
+to give us a monad that gives us mutable state while still allowing the I/O operations we require.
+
+\subsection{The Monad Transformer Library \code{mtl}}
+
+- Describe the basics of mtl: instances
+- Monad stacks
+- Issues: overhead, quadratic instances
+
+\subsection{Using Monad Transformers}
+
+- Rewrite the above example using monad transformers.
+
+\begin{notelist}
+    \item Motivation: composing effects
+    \item Monad transformer library, quadratic instances problem
+    \item Example with State and IO
+\end{notelist}
+

@@ -21,14 +21,18 @@
    {$\bullet$}
    {\setlength{\itemsep}{0in}}}
    {\end{list}}
-    
+
+\definecolor{light-gray}{gray}{0.75}
+
 % Options for code listings
 \lstset{
-    frame=single,
-    language=Haskell,
-    numbers=left,
+    aboveskip=\baselineskip,
     basicstyle=\ttfamily\small,
-    aboveskip=\baselineskip
+    frame=none,
+    language=Haskell,
+    numberstyle=\ttfamily\small\color{light-gray},
+    numbers=right,
+    showstringspaces=false,
 }
 
 \setlength{\parindent}{0pt}
@@ -84,6 +88,11 @@
   Milan Lipova\v{c}a,
   \emph{Learn You a Haskell for Great Good},
   2011.
+\bibitem{awkward}
+  Simon Peyton Jones,
+  \href{http://research.microsoft.com/en-us/um/people/simonpj/papers/marktoberdorf/mark.pdf}
+       {``Tackling the Awkward Squad: monadic input/output, concurrency, exceptions, and foreign-language calls in Haskell''},
+  2010.
 \end{thebibliography}
 
 \end{document}

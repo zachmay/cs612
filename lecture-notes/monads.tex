@@ -56,14 +56,7 @@ boilerplate code.
 Of course, we have already seen how Haskell's \code{Maybe} type lets us encode the possibility of \code{null}-like values
 explicitly. Suppose we have analagous Haskell types and functions. The above code translates to something like:
 
-\begin{lstlisting}
-userEmailDomain :: User -> Maybe String
-userEmailDomain user = case getContactInfo user of
-    Nothing          -> Nothing
-    Just contactInfo -> case getEmailAddress contactInfo of
-        Nothing    -> Nothing
-        Just email -> getDomain email
-\end{lstlisting}
+\lstinputlisting[firstline=1, lastline=6]{code/maybe-monad.hs}
 
 Although we are now explicit about the possibility of a null result, we have not really addressed the issue of boilerplate.
 If we had to chain together even more calls, our code would quickly stair-step right off the screen.
@@ -75,30 +68,21 @@ we try to pass the result of \code{getEmailAddress} into \code{getDomain}.
  
 We can generalize this pattern:
 
-\begin{lstlisting}
-chainMaybe :: Maybe a -> (a -> Maybe b) -> Maybe b
-Nothing  `chainMaybe` f = Nothing
-(Just x) `chainMaybe` f = fx
-\end{lstlisting}
+\lstinputlisting[firstline=8, lastline=10]{code/maybe-monad.hs}
 
 Note: Here we juse backticks around the function name to cause Haskell treat the function like an infix operator, not unlike
 using parentheses around an infix operator causes Haskell to treat it like a regular, prefix function.
 
 Having factored out the pattern matching to handle both cases, we can rewrite our stair-stepped chain of function calls:
 
-\begin{lstlisting}
-userEmailDomain :: User -> Maybe String
-userEmailDomain user =
-(Just user) `chainMaybe` getContactInfo
-            `chainMaybe` getEmailAddress
-            `chainMaybe` getDomain
-\end{lstlisting}
+
+\lstinputlisting[firstline=12, lastline=16]{code/maybe-monad.hs}
 
 Now our code is as readable as the original Java chain of method calls, but with the \code{null}-safety of the clunky second attempt.
 
 \subsection{The \code{Monad} Type Class}
 
-Not surprisingly, Haskell offers a type class to describe this same pattern in polymorphic terms:
+Not surprisingly, Haskell offers a type class to describe this pattern in polymorphic terms:
 
 \begin{lstlisting}
 class Monad m where
@@ -111,9 +95,9 @@ class Monad m where
 \end{lstlisting}
 
 \begin{notelist}
-    \item \code{(>>=)} is the monadic chaining operator. It is just a polymorphic, infix equivalent of \code{chainMaybe}, which is
-          how \code{Maybe}'s implementation of \code{(>>=)} is defined.
-    \item \code{(>>)} can be thought of as a chaining operator where the value passed into the right-hand function is simply ignored.
+    \item \code{(>>=)} is the monadic chaining operator. It is a polymorphic, infix equivalent of \code{chainMaybe}, which has the 
+          same definition as \code{Maybe}'s implementation of \code{(>>=)}.
+    \item \code{(>>)} is a special case of \code{(>>=)} where the value passed into the right-hand function is simply ignored.
           It is given a default implementation in terms of \code{(>>=)} on line 5.
     \item \code{return} is the \code{Monad} class's general method for injecting a value into a monadic wrapper. Code that uses
           the \code{Monad} interface cannot use specific constructors like \code{Just} on line 3 of our final \code{userEmailDomain}
@@ -128,7 +112,7 @@ class Monad m where
 
 We mentioned before that \code{return} and \code{pure} were basically identical. In fact, conceptually,
 \code{Applicative} is a superclass of \code{Monad}. In fact, the hierarchy from \code{Functor} to \code{Applicative}
-to \code{Monad} represents progressively more flexible operations on with values inside some context.
+to \code{Monad} represents progressively more flexible operations on values inside some context.
 
 However, while \code{Functor} and \code{Monad} were part of the Haskell standard library as described in the Haskell 98 standard \cite{haskell98},
 applicative functors were not introduced until 2008 in the paper \emph{Applicative Programming with Effects} \cite{applicative} by McBride and
@@ -222,7 +206,7 @@ Like \code{Functor} and \code{Applicative}, there are laws that govern how \code
 \end{notelist}
 
 The left and right identity laws describe are primarily concerned with the neutral behavior of \code{return}. The associativity
-law, with the behavior of sequences of monadic operations linked together with \code{(>>=)}.
+law, with the behavior of sequences of monadic actions linked together with \code{(>>=)}.
 
 Interestingly, none of these laws look much like identity or associativity as we might recall from algebra. However, if we introduce
 a new (but related) operator, they do:
@@ -249,7 +233,7 @@ then store the value in \code{t} into \code{b}. Our programs just shuffle bit pa
 
 In the end, Haskell programs are doing the same thing, but we are interested in expressing our programs in terms of higher-level 
 constructs. However, the mutating state is a powerful tool and the \code{State} monad allows us to do emulate this style of
-programming by providing the framework through which a value of some type can be passed through a sequence of monadic operations,
+programming by providing the framework through which a value of some type can be passed through a sequence of monadic actions,
 possibly being replaced along the way. We do not actually write values to locations in memory, but the end result is similar, while
 being built on the same monadic abstraction we have looked at so far.
 
@@ -315,7 +299,7 @@ This is a bit abstract, so an example may be helpful. This example is adapted fr
 to Haskell called \emph{Learn You a Haskell for Great Good} \cite{learnyou}.
 
 The state that we will use in our computations will be a stack, implemented as \code{[Integer]}. We will define
-\code{push} and \code{pop} operations and use them in a small sample program.
+\code{push} and \code{pop} actions and use them in a small sample program.
 
 \begin{lstlisting}
 type Stack = [Integer]
@@ -344,7 +328,7 @@ push x = State $ \xs -> ((), x:xs)
           the stack to get updated.
 \end{notelist}
 
-Now we can use our \code{push} and \code{pop} operations:
+Now we can use our \code{push} and \code{pop} actions:
 
 \begin{lstlisting}
 add :: State Stack ()
@@ -360,15 +344,15 @@ result = runState simpleMath []
 \end{lstlisting}
 
 \begin{notelist}
-    \item We define a new operation \code{add} in terms of \code{pop} and \code{push}. In conjunction with \code{(>>=)},
-          we use the two anonymous functions to bind the results of the two \code{pop} operations before pushing their sum
+    \item We define a new action \code{add} in terms of \code{pop} and \code{push}. In conjunction with \code{(>>=)},
+          we use the two anonymous functions to bind the results of the two \code{pop} actions before pushing their sum
           back onto the stack.
-    \item In essence, we have extended our language of \code{Stack} operations to include a new stack-based addition operator.
+    \item In essence, we have extended our language of \code{Stack} actions to include a new stack-based addition operator.
     \item Then in \code{simpleMath}, we use that language to write \code{Stack} manipulation code that has the appearance of
           imperative code. 
 \end{notelist}
 
-In order to actually run \code{simpleMath}, we call \code{runState} on the operation we want to execute and the initial state.
+In order to actually run \code{simpleMath}, we call \code{runState} on the action we want to execute and the initial state.
 As described, \code{runState} unwraps the underlying function inside the \code{State} wrapper and that function is immediately
 applied to the initial state, giving as a result value and a final state.
 
@@ -448,11 +432,121 @@ The Haskell compiler simplifies \code{do}-notation systematically, using the fol
 
 \subsection{The \code{IO} Monad}
 
+As a pure functional language, Haskell functions are unable to have side effects, including modifying program state and I/O.
+
+We have seen how the \code{State} monad allows us to write code that models state manipulation and a similar approach is used
+for I/O actions with the \code{IO} monad.
+
+Intuitively, we can think of the \code{IO} monad as a special case of the \code{State} monad where the state value being modified
+represents the outside world. An action in the \code{IO} monad that reads a string from the keyboard can be thought of as taking
+the current state of the outside world and returning a pair containing the string entered, plus the new, modified state of the
+outside world, with the keyboard input consumed.
+
+Just as values of type \code{State a} can be thought of as stateful computations resulting in a value of type \code{a}, values
+of type \code{IO a} can be thought of as actions that reach outside of the pure Haskell execution model to perform I/O and
+yield a value of type \code{a}. The \code{IO} action described above would have type \code{IO String}. An \code{IO} action
+that printed a string to the screen and yielded no interesting result would have type \code{IO ()}.
+
+Recall as well that Haskell is a lazy language. \code{IO} actions are decoupled from the actual execution of the I/O they
+describe. For example, in the \code{IO String} action described above, no characters are read from the keyboard until
+they are demanded by evaluating an expression that needs them.
+
+Here is an example. We will prompt the user for a file name (trying repeatedly until they entire the name of a file
+that exists). Then we will read the contents of the file, process it with a pure function that reverses the individual
+words, and print the output to the screen.
+
+\lstinputlisting{code/io.hs}
+
 \begin{notelist}
-    \item Describe IO monad as mechanism for definining impure computations in a pure language
-    \item IO values aren't "flagged" values, but lazy descriptions of computations that go out and get values from
-          the outside world when finally executed.
-    \item Examples
-    \item Describe how userEmailDomain behaves if written as generic monadic operation and applied in list monad, IO monad
+    \item We begin by importing modules. We need \code{Control.Applicative} for \code{(<\$>)}, \code{System.Directory}
+          \code{doesFileExist}.
+    \item We begin by defining \code{process}. This is a pure function of type \code{String -> String}.
+        \begin{notelist}
+            \item \code{process} is written as pipeline of pure functions linked together by the function composition
+                  operator \code{(.)}. Data moves through the pipeline from right to left (or, as formatted here,
+                  bottom to top).
+            \item \code{lines} breaks a \code{String} into a list of \code{String}s on newline characters.
+            \item We break each of these lines into its constituent words with \code{map words}.
+            \item We now have a list of lists of \code{Strings} (\code{[[String]]}). We reverse each of these
+                  individual strings with \code{map (map reverse)}. We need two instances of \code{map} since we are
+                  working with nested lists.
+            \item With the words reversed, we reassemble the lines with \code{unwords} and reassemble the
+                  \code{String} as a whole with \code{unlines}. 
+        \end{notelist}
+    \item Note how we have separated the pure processing code from the I/O code. We are better able to reason about
+          and test \code{process} because we know that the type system will enforce this separation.
+    \item \code{reverseWords} is the \code{IO} action that describes the user interaction we want to perform.
+        \begin{notelist}
+            \item We use \code{do}-notation, which is available for any monad.
+            \item The \code{IO} actions \code{putStrLn} and \code{putStr}, both of type \code{String -> IO ()}
+                  write a string to the console with and without a newline, respectively.
+            \item \code{getLine} reads a line of input from the console. We bind the result to the identifier
+                  \code{fileName} with the left-arrow notation.
+            \item Now we check whether the file exists. We use \code{doesFileExist :: FilePath -> IO Bool}, where
+                  \code{FilePath} is a descriptive type synonym for \code{String}.
+            \item We bind the result to the identifier \code{fileExists}. Note that we cannot use the value
+                  \code{doesFileExist fileName} directly in an \code{if} statement because it requires a value
+                  of type \code{Bool}, not \code{IO Bool}. This restriction is Haskell's type system enforcing
+                  the separation of pure and impure code.
+            \item If the file does not exist, we print a message and recursively call \code{reverseWords}.
+            \item If the file does exist, we will process the contents of the file.
+                \begin{notelist}
+                    \item The expression \code{readFile fileName} has type \code{IO String}, so we cannot
+                          directly apply \code{process} which requires a parameter of type \code{String}.
+                    \item However, because \code{IO} is also an instance of \code{Applicative}, we can use
+                          \code{(<\$>)} to enable \code{process} to operate on \code{IO String}.
+                    \item The expression \code{process <\$> readFile fileName} is itself an \code{IO}
+                          action of type \code{IO String}, and we use explicit monadic binding with \code{(>>=)}
+                          to pipe the its result into \code{putStr} to write the processed result
+                          to the console.
+                \end{notelist}
+            \item Finally, we define an \code{IO} action \code{main} to just call \code{reverseWords}. When 
+                  the Haskell compiler produces an executable, it looks for an action of type \code{IO ()}
+                  named \code{main} to be the entry point into the program.
+        \end{notelist}
 \end{notelist}
 
+\subsection{Conclusion}
+
+We have now looked at a hierarchy of type classes, \code{Functor}, \code{Applicative}, and \code{Monad}. 
+These classes successively refine the notion of actions within some computational context.
+
+\code{Functor} offers us the higher-order function \code{fmap} which lifts pure functions into a 
+context. We can think of \code{fmap sqrt} as being polymorphic in the type of context it operates on:
+
+\begin{notelist}
+    \item In the \code{Maybe} functor, it takes the square root of the number if it exists, and propagates
+          the lack of value if not.
+    \item In the list functor, it takes the square root of any number of values.
+    \item \code{State}, which we have only considered as a monad, is also a \code{Functor}. In this case,
+          \code{fmap sqrt} can be applied to a stateful computation, resulting in a new stateful computation
+          that leaves the state value unchanged but takes the square root of the number yielded by
+          another original stateful computation.
+    \item Similarly, in \code{IO}, \code{fmap sqrt} can be applied to an I/O action yielding a number to create
+          a new I/O action yielding the square root of that number. So \code{fmap sqrt \$ readLn} is an 
+          I/O action that attempts to read a string from the console, parse it as a floating-point number,
+          and yields the result.
+\end{notelist}
+
+\code{Applicative} extends this idea, with \code{(<*>)} allowing us to use function values that are
+themselves inside a computational context. 
+
+Finally, \code{Monad} builds on this notion of computational contexts the notion of chaining together
+function applications with \code{do}-notation and the underlying \code{(>>=)} operator. Chaining together
+actions within each monad can be seen as programming with a constrained type of side effect.
+
+\begin{notelist}
+    \item \code{Maybe} offers computation with the side effect of short-circuit failure: \code{(>>=)} binds
+          two actions that might fail. If the first succeeds, the second will be able to operate on the result.
+          Otherwise, the entire evaluation fails.
+    \item The list monad offers computation with the side effect of non-determinism: \code{(>>=)} binds two
+          actions that can each result in many possible values. The second action returns a list containing
+          all the results it gets from operating on all the results from the first action.
+    \item \code{State} offers computation with the side effect of mutable state: \code{(>>=)} abstracts away
+          the process of an action yielding a value along with the current state to a second action,
+          simulating a sequence of imperative actions that are mutating some shared state.
+    \item Finally, \code{IO} deals with the most general sort of side effect: interaction with the world outside
+          Haskell's pure evaluation: binding \code{IO} actions with \code{(>>=)} sequences their execution.
+\end{notelist}
+     
+In the next section, we will look at how we can compose different types of effects using monad transformers.
