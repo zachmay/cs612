@@ -53,9 +53,84 @@ to give us a monad that gives us mutable state while still allowing the I/O oper
 
 - Rewrite the above example using monad transformers.
 
+\subsection{Monadic Parsing}
+
+Parsing text is a frequently encountered problem in computing. Simple recursive descent parsing is almost
+identical to computations in the \code{State} monad. A parser for some type \code{t} takes some initial 
+state, the input buffer, and returns a value of type \code{t} and the unconsumed input.
+
+However, parsing does not always succeed. For this reason, we would like to extend the \code{State} monad
+with the possibility of failure. In this case, we would like failures to come with some explanation. Rather
+than use \code{Maybe}, we will use \code{Either e t}, where \code{e} is the type of the error value and
+\code{t} is the type of a successful result.
+
+\code{Either} has kind \code{* -> * -> *}, so it cannot be a monad. However, if we apply one of the type
+parameters, we get a proper monad: \code{Either e} for some error type \code{e}.
+
+\lstinputlisting{code/either.hs}
+
 \begin{notelist}
-    \item Motivation: composing effects
-    \item Monad transformer library, quadratic instances problem
-    \item Example with State and IO
+    \item \code{Either} has two data constructors, \code{Left} for errors, \code{Right} for values.
+    \item The \code{Functor}, \code{Applicative}, and \code{Monad} instances are all analogous to the ones we
+          saw for \code{Maybe}, but rather than dealing with \code{Nothing} values, the failure case is  \code{Left}
+          wrapping an error value.
+    \item We avoid \code{Monad}'s \code{fail} function since it takes a \code{String} and we want to be able
+          to use any type for errors. The default implementation (causing a fatal error) will be used. As a result,
+          our code will use \code{Right} to signal errors.
 \end{notelist}
 
+Just as the \code{State} monad has its transformer equivalent \code{StateT}, \code{Either} has its transformer,
+called \code{ExceptT}. We will use \code{ExceptT} on top of \code{State} to build our parsing monad.
+
+\lstinputlisting[lastline=12]{code/parsing.hs}
+
+\begin{notelist}
+    \item On line 7, we define \code{ParseError} as a synonym for \code{String}.
+    \item On line 9, We define a type synonym for our parser type. \code{Parser a} is much easier to read
+          than the alternative, but ultimately our parser type is just stateful computation modified with failure 
+          with error messages.
+    \item Lines 11-12 define the function to drives our \code{Parser} computations. It takes a parsing computation
+          and an initial state and returns the result (a value or error message) plus the unconsumed input. 
+\end{notelist}
+
+Now we can write some basic parsing primitives:
+
+\lstinputlisting[firstline=14,lastline=46]{code/parsing.hs}
+
+\begin{notelist}
+    \item \code{runParser} is a convenience function that composes running a \code{State} computation with 
+          the \code{ExceptT} monad transformer on top of it. 
+    \item The function \code{char} tries to parse a single character \code{c}. We \code{get} the current remaining
+          parse buffer. If the buffer is empty, our parse fails. If there is at least one character in the buffer, we check 
+          whether it is equal to \code{c}. If so, update the state with the remainder of the buffer and yield the character.
+          Otherwise, our parse fails.
+    \item The \code{string} parser tries to parse a given string. We implement this using the general monadic function
+          \code{mapM :: Monad m => (a -> m b) -> [a] -> m [b]}. This function sequences the application of a function
+          over each element in a list, yielding the collecting the results. In this case, the function is 
+          \code{char :: Char -> Parser Char}. Since \code{String} is equivalent to \code{[Char]}, we sequence
+          the parsing of each character in the string, yielding the parsed string. If parsing any of the individual
+          characters fails, parsing the entire string fails.
+    \item The choice operator \code{(<|>) :: Parser a -> Parser a -> Parser a} attempts the left-hand parser using \code{catchE} which
+          runs a computation that might raise an exception and, if an exception occurs, passes the exception value into another action.
+          In this case, we ignore the exception value, replace the initial parser state and try the right-hand parser.
+    \item \code{many} parses zero or more repetitions of the given parser, yielding a list of the results. It use \code{(<|>)} chooise
+          between no parses (\code{return []} on the right) or one or more. This definition uses applicative notation to
+          lift \code{(:)} to build lists of parse results in a way that is more succinct than the equivalent \code{do}-notation.
+    \item \code{manyOne} is like \code{many}, but requires at least one successful application of the given parser.
+\end{notelist}
+
+With these simple primitives and the general library functions we get for \code{Applicative} and \code{Functor} we can
+write recursive descent parsers. The following simple parser parses nested parentheses, yielding a tree structure:
+
+\lstinputlisting[firstline=48]{code/parsing.hs}
+
+\begin{lstlisting}
+ghci> runParser parens "()"
+(Right Leaf,"")
+
+ghci> runParser parens "(()(()))"
+(Right (Node [Leaf,Node [Leaf]]),"")
+
+ghci> runParser parens ""
+(Left "Unexpected end of input","")
+\end{lstlisting}

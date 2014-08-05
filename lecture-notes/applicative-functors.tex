@@ -14,20 +14,14 @@ again with the possibility that it might not actually be there, i.e., \code{Mayb
 Of course, since either the function or the parameter might be \code{Nothing}, the return value needs
 to be able to propagate this possibility of failure. How would we accomplish that?
 
-\begin{lstlisting}
-maybeApplyToMaybe :: Maybe (Integer -> Integer) -> Maybe Integer -> Maybe Integer
-maybeApplyToMaybe Nothing _ = Nothing
-maybeApplyToMaybe _ Nothing = Nothing
-maybeApplyToMaybe (Just f) (Just x) = Just \$ f x
-\end{lstlisting}
+\lstinputlisting[lastline=5]{code/applicative-functors.hs}
 
 There are three cases:
 
 \begin{notelist}
-    \item Line 2: When we get no function to apply, the parameter does not matter: the result is \code{Nothing}.
-    \item Line 3: When we get no parameter to apply the function to, the function does not matter: the result is \code{Nothing}.
-    \item Line 4: When we actually get a function and an parameter, we can unwrap them from their \code{Maybe} wrapper,
+    \item When we get both  a function and an parameter, we can unwrap them from their \code{Maybe} wrapper,
           apply the function to the parameter, and return the result wrapped back up.
+    \item In any other case, either the function or its parameter is \code{Nothing}, so we return \code{Nothing}.
 \end{notelist}
 
 What happens if we want to use a function with two or more parameter in this way? We do not actually have to write any more
@@ -46,11 +40,7 @@ We saw in the previous section that \code{map} for lists and \code{applyToMaybe}
 general \code{Functor} type class. The same idea works here, and the resulting type class is called \code{Applicative}, short for
 \textbf{applicative functor}.
 
-\begin{lstlisting}
-class Functor f => Applicative f where
-    pure  :: a -> f a
-    (<*>) :: f (a -> b) -> f a -> f b
-\end{lstlisting}
+\lstinputlisting[firstline=7,lastline=9]{code/applicative-functors.hs}
 
 The \code{Applicative} type class has its own class constraint: every instance of \code{f} of \code{Applicative} must also
 be an instance of \code{Functor}. In fact, most of the standard library's \code{Functor} instances are also \code{Applicative}s
@@ -64,7 +54,9 @@ the \code{Control.Applicative} module.
 If we look back at \code{maybeApplyToMaybe :: Maybe (Integer -> Integer) -> Maybe Integer -> Maybe Integer}, we see simply
 a monomorphic instance of the more general, polymorphic type of \code{(<*>)}. In fact, Haskell would have inferred a more
 general type for \code{maybeApplyToMaybe}: \code{Maybe (a -> b) -> Maybe a -> Maybe b} and our implementation is essentially 
-the standard library's implementation of \code{(<*>)} for \code{Maybe}.
+the standard library's implementation of \code{(<*>)} for \code{Maybe}:
+
+\lstinputlisting[firstline=11,lastline=14]{code/applicative-functors.hs}
 
 That means we can scrap our 17 character function name and rewrite \code{maybeApplyToMaybe (Just (+5)) (Just 2)} as 
 \code{Just (+5) <*> Just 2}.
@@ -87,12 +79,15 @@ What might \code{Maybe}'s implementation of \code{pure} look like? It is literal
 It might seem that all we really get from \code{Applicative} is a way to factor out the unwrapping required to apply a function
 in a context to a value in a context, but there is more here.
 
-Consider the operator \code{(<\$>) :: (a -> b) -> f a -> f b} provided by the \code{Control.Applicative} module.
+Consider the operator \code{(<\$>)} provided by the \code{Control.Applicative} module.
 It that takes a function, injects it into \code{f} with \code{pure}, and then uses \code{(<*>)} to apply it to a value
 in \code{f}. 
 
+\lstinputlisting[firstline=16,lastline=17]{code/applicative-functors.hs}
+
 The type of \code{(<\$>)} should look familiar: it is the same type as \code{fmap}. In fact, assuming both \code{Functor}
 and \code{Applicative} laws (which we will see in a moment) the two are synonyms: \code{g <\$> pure x == fmap g \$ pure x}.
+The infix version is only introduced for stylistic reasons, suggesting the relationship with \code{(<*>)}.
 
 What we really get out of \code{Applicative} is a better version of \code{fmap}.
 
@@ -107,14 +102,7 @@ or even more idiomatically: \code{(+) <\$> Just 3 <*> Just 5}.
 From a practical perspective, we could write a function that attempted to build a \code{PlaneTicket} value based on
 optional \code{Section} and \code{MealOption} values:
 
-\begin{lstlisting}
-createPlaneTicket
-    :: Maybe Section
-    -> Maybe MealOption
-    -> Maybe PlaneTicket
-createPlaneTicket section meal
-    = PlaneTicket <\$> section <*> meal
-\end{lstlisting}
+\lstinputlisting[firstline=19,lastline=24]{code/applicative-functors.hs}
 
 \code{createPlaneTicket} uses the language of \code{Applicative} to succinctly lifts the \code{PlaneTicket} data constructor
 into the \code{Maybe} context where the \code{MealOption}s and \code{Section}s might not exist.
@@ -151,7 +139,8 @@ What the interchange law is trying to express is that the order in which we eval
 parameter should not matter in a proper \code{Applicative} instance.
 
 We can think of the \textbf{composition law} as formalizing an associative property for \code(<*>) in terms 
-of Haskell's standard function composition operator \code{(.)}.
+of Haskell's standard function composition operator \code{(.)}. Here, \code{g :: f (b -> c) } and \code{h :: f (a -> b)}
+are two functions inside an applicative functor \code{f} and \code{k :: f a} is a value in the same applicative functor.
 
 Finally, the \textbf{functor instance law} describes how an \code{Applicative} instance should behave relative to
 its \code{Functor} instance and is required for the equivalence between \code{(<\$>)} and \code{fmap} to hold for
@@ -183,11 +172,7 @@ value, yielding a total of 9 possible values in this example.
 
 In fact, the Haskell library's \code{Applicative} instance for lists uses the latter interpretation. The implementation looks like this:
 
-\begin{lstlisting}
-instance Applicative [] where
-    pure x    = [x]
-    gs <*> xs = [ g x | g <- gs, x <- xs ]
-\end{lstlisting}
+\lstinputlisting[firstline=26,lastline=28]{code/applicative-functors.hs}
 
 \begin{notelist}
     \item \code{pure} injects a value into the list context by creating a singleton list containing that value.
@@ -199,13 +184,7 @@ What about the pair-wise version of \code{Applicative} for lists? Due to languag
 two implementations for the same type class. Instead, Haskell offers type called \code{ZipList} that wraps a normal
 list but offers a different \code{Applicative} instance:
 
-\begin{lstlisting}
-newtype ZipList a = ZipList { getZipList :: [a] }
- 
-instance Applicative ZipList where
-   pure x = repeat x
-   (ZipList gs) <*> (ZipList xs) = ZipList (zipWith (\$) gs xs)
-\end{lstlisting}
+\lstinputlisting[firstline=30,lastline=39]{code/applicative-functors.hs}
 
 \begin{notelist}
     \item The \code{newtype} keyword defines a type synonym that is checked at compile time but discarded so there is no
@@ -213,6 +192,9 @@ instance Applicative ZipList where
           Record syntax is used here to automatically create a function \code{getZipList} to translate normal lists to
           \code{ZipList}s.
     
+    \item Our \code{ZipList} type needs to be a \code{Functor} before it can be an \code{Applicative}, so we define that here,
+          delegating to the list type's \code{map} function.
+
     \item \code{zipWith} takes two lists and applies a function pair-wise to the elements of those lists. In this case
           the function is \code{(\$)}, which we have seen previously. So the \code{ZipList} instance of \code{Applicative}
           is implementing pair-wise application.
