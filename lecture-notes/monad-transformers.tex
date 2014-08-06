@@ -43,15 +43,135 @@ This solution works, but it has the drawback that we were responsible for keepin
 explicitly passing it through recursive calls to \code{runStats}. We want compose \code{IO} and \code{State}
 to give us a monad that gives us mutable state while still allowing the I/O operations we require.
 
-\subsection{The Monad Transformer Library \code{mtl}}
+\subsection{The Monad Transformer Library}
 
-- Describe the basics of mtl: instances
-- Monad stacks
-- Issues: overhead, quadratic instances
+The Haskell standard library includes a framework for composing two or more monads, called the Monad Transformer
+Library. 
 
-\subsection{Using Monad Transformers}
+Monad transformers work by layering an interface for monadic operations of one type on top of a base monad.
+We saw earlier how to use the \code{State} monad to write stateful code that manipulated a stack of integers.
+Here we will extend that example, wrapping the \code{IO} monad with \code{State} to give us state manipulation
+and I/O at the same time.
 
-- Rewrite the above example using monad transformers.
+\lstinputlisting[lastline=6]{code/monad-transformers.hs}
+
+\begin{notelist}
+    \item We need to import \code{Control.Monad.Trans} to access some basic transformer-related functions, namely \code{lift}
+          which we will see below.
+    \item The \code{Control.Monad.Trans.State} module gives us the transformer for \code{State}.
+    \item On line 4, we define a type synonym for the state values our combined monad will track.
+    \item On line 6, we define a type synonym, \code{StatePlusIO}, for our combined monad. 
+    \item We build our combined monad using the type \code{StateT s m a}:
+        \begin{notelist}
+            \item By convention the transformer equivalent of a monad is suffixed with ``\code{T}''. Thus, \code{State}'s
+                  transformer equivalent is \code{StateT}.
+            \item The first type variable, \code{s}, is the type for the state values, \code{Stack} in the example.
+            \item The second type variable, \code{m}, is the type of the underlying monad, \code{IO} in the example.
+            \item The third and final type variable, \code{a}, is just the result type of values yielded by operations
+                  in the monad. We do not specify it here, since we may want operations of type \code{StatePlusIO Integer}
+                  or \code{StatePlusIO ()}, etc.
+        \end{notelist}
+\end{notelist}
+
+Now we have a new monadic type that has the same stack manipulation categories we saw earlier but with the capability of
+performing I/O. We can write some basic actions to interact with this new monad:
+
+\lstinputlisting[firstline=8,lastline=37]{code/monad-transformers.hs}
+
+\begin{notelist}
+    \item The functions \code{push} and \code{pop} operate just as they did before, but use \code{lift} to
+          turn the \code{IO} action \code{putStrLn} into an action in the \code{StatePlusIO} monad.
+    \item The general type of \code{lift} is \code{m a -> t m a}. Haskell can infer both the inner and
+          outer monad based on the environment that \code{lift} is used in.
+    \item In this case, \code{m} is \code{IO} and \code{t} is \code{StateT Stack}.
+    \item So \code{lift} takes \code{putStrLn :: String -> IO ()} and gives us \code{String -> StateT Stack IO ()}.
+    \item The \code{readPush} action uses our stateful framework plus I/O to read an integer from the console and
+          push the result onto the stack. Again, \code{lift} brings the \code{readLn} action from the underlying
+          \code{IO} monad up into our combined monad.
+\end{notelist}
+
+Just as with the examples we saw using a simple \code{State} monad, the actions we define for \code{StatePlusIO}
+will not do anything until we run them with \code{runStateT}:
+
+\begin{lstlisting}
+ghci> runStateT calculator []
+? 3
+Pushed 3
+? 5
+Pushed 5
+Popped 5
+Popped 3
+Pushed 8
+((),[8])
+\end{lstlisting}
+
+To run a \code{State} action, we used \code{runState :: State s a -> s -> (a, s)}, which took a \code{State}
+action and an initial state and returned the result along with the final state. The type of \code{runStateT} has a
+slightly different type: \code{StateT s m a -> s -> m (a, s)}. We still provide a monadic action (in this case,
+built from the \code{StateT} transformer) and an initial state, but the resulting pair is wrapped inside the
+underlying monad.
+
+In the case of \code{StatePlusIO}, the result of \code{runStateT} is a value in the \code{IO} monad.
+
+The monad transformer library allows us to compose more than just two monads. In the following example,
+we will extend \code{StatePlusIO} with globally accessible, read-only configuration using \code{ReaderT}
+to give our stack manipulation code a list of values that it will refuse to store:
+
+\lstinputlisting[lastline=17]{code/more-monad-transformers.hs}
+
+\begin{notelist}
+    \item We add an additional import this time, \code{Control.Monad.Trans.Reader} for the \code{Reader}
+          monad's transformer equivalent \code{ReaderT}.
+    \item We also define a type synonym for our configuration value, in this case a list of integers.
+    \item The definition of our new combined type is similar to before, but instead of layering
+          \code{StateT} over just \code{IO}, we are building on top of the monad we get from 
+          layering \code{ReaderT} over \code{IO}. We are composing three different monads
+          to create the combined monad \code{StateReaderIO}.
+    \item The \code{push} function receives the biggest change:
+        \begin{notelist}
+            \item In the \code{Reader} monad, the function \code{ask} yields the read-only value
+                  carried along with the computation.
+            \item Since \code{ReaderT} is not the top-level monad, we have to use \code{lift} 
+                  to bring \code{ask} (an action in the \code{ReaderT Config IO} monad) up into
+                  the full \code{StateReaderIO} monad.
+            \item We bind this result to the identifier \code{blacklist} and if the value we are
+                  attempting to push is in that list, we alert the user that the operation is
+                  forbidden. Otherwise, we push the value onto the stack as before.
+            \item We use a new function \code{liftIO} to lift the \code{IO} action into our
+                  full combined monad. Because \code{lift} can only bring an action up
+                  a single level in the monad stack, we would actually need \code{lift . lift}
+                  (\code{lift} composed with itself) to bring an \code{IO} action up
+                  two levels into \code{StateReaderIO}.
+            \item Because \code{IO} is often the base monad on top of which several monad
+                  transformers are layered, \code{liftIO} was included in the monad transformer
+                  library to lift \code{IO} actions to the top level no matter where in the 
+                  stack \code{IO} is actually located.
+        \end{notelist}
+\end{notelist}
+
+Of course, we need a function to evaluate an action in our combined \code{StateReaderIO} monad.
+Recall that \code{runStateT} ran our \code{StateT}-based action and resulted in a value within
+the underlying \code{IO} monad.
+
+In this case, \code{runStateT} will take a \code{StateReaderIO} action and an initial state, but
+give us a value in the \code{ReaderT Config IO} monad. Thus we need to use \code{runReaderT} to
+fully evaluate a \code{StateReaderIO} action to get a result in the \code{IO} monad.
+
+Below we demonstrate \code{readPush} in our new monad, where \code{[1,2,3]} is the blacklist of values
+that \code{push} will reject and \code{[]} is the initial state.
+
+\begin{lstlisting}
+ghci> runReaderT (runStateT readPush []) [1,2,3]
+? 4
+Pushed 4
+((),[4])
+
+ghci> runReaderT (runStateT readPush []) [1,2,3]
+? 2
+Forbidden: 2
+((),[])
+\end{lstlisting}
+
 
 \subsection{Monadic Parsing}
 
