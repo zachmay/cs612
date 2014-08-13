@@ -1,0 +1,208 @@
+\documentclass[12pt]{article}
+% \usepackage{palatino}
+\usepackage{epsfig}
+\usepackage{epstopdf} % for \psfig{.eps}
+\usepackage{amssymb} % for \varnothing
+\usepackage{amsmath} % for \pmod
+\usepackage{url} % to split long names
+\usepackage{color}
+\usepackage{listings}
+\usepackage{hyperref}
+\setlength{\topmargin}{-0.1in}
+\setlength{\textheight}{8.0in}
+% \newcommand\note[1]{{\color{red} #1}}
+\pagestyle{myheadings}
+\markboth{}{An Interpreter for a Simple Programming Language}
+\newcommand\note[1]{\raggedright\fbox{#1}}
+% \newcommand\ind{\hspace*{.3in}}
+\newcommand\code[1]{\texttt{\textbf{#1}}}
+\def\>{\hspace*{0.2in}}
+\newenvironment{notelist}{\begin{list}
+   {$\bullet$}
+   {\setlength{\itemsep}{0in}}}
+   {\end{list}}
+
+\definecolor{light-gray}{gray}{0.75}
+
+% Options for code listings
+\lstset{
+    aboveskip=\baselineskip,
+    basicstyle=\ttfamily\small,
+    frame=none,
+    language=Haskell,
+    numberstyle=\ttfamily\small\color{light-gray},
+    numbers=right,
+    showstringspaces=false,
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{\baselineskip}
+
+\begin{document}
+
+\thispagestyle{empty}
+
+\begingroup
+    \centering
+    \LARGE \textbf{Programming Assignment} \par
+    \large \textbf{An Interpreter for a Simple Programming Language} \par
+\endgroup
+
+In this programming assignment, you will implement an interpreter for a simple programming language we will call LANG.
+You will need to write a parser that takes a LANG program (as a \code{String}) and returns a parse tree for the program.
+Then, you will write the interpreter that executes that parse tree.
+
+Included with this assignment are two Haskell source files: 
+
+\begin{notelist}
+    \item \code{Parsing.hs} is a module that defines the basic monadic parsing API we studied in the section on
+          monad transformers. You will use these parsing primitives to implement a recursive-descent parser for
+          LANG programs.
+    \item \code{AST.hs} is a module that defines the data types representing the abstract syntax of a LANG program.
+          Your parser should use these types as its output and your interpreter should for its input.
+\end{notelist}
+
+\section{The Language}
+
+The structure of a LANG program is reflected in the types defined in \code{AST.hs}:
+
+\begin{notelist}
+    \item A program is a list of statements.
+    \item A statement is one of the following:
+        \begin{notelist}
+            \item A print statement for printing numeric values: \code{print (1 + 1)}
+            \item A print statement for string literals: \code{sprint "Hello world!"}
+            \item A read statement to read a number from the console and store that value in a variable: \code{read x}
+            \item An assignment statement: \code{x = 42}
+            \item A while loop that executes a statement for as long as a control expression evaluates to a true value:
+\begin{lstlisting}
+    while x < 10 {
+        x = x + 1
+        print x
+    }
+\end{lstlisting}
+            \item An if-then statement that executes a statement if a control expression evaluates to a true value:
+\begin{lstlisting}
+    if x < 10 then
+        sprint "Less than ten"
+\end{lstlisting}
+            \item An if-then-else statement that executes one statement if a control expression evaluates to a true value but
+                  executes a second statement otherwise:
+\begin{lstlisting}
+  if x < 10 then
+      sprint "Less than ten"
+  else
+      sprint "Greater than or equal to ten"
+\end{lstlisting}
+            \item A compound statement, surrounded by braces, that can contain zero or more other statements. Since the abstract syntax
+                  for \code{if} and \code{while} statements only admits a single statement body, compound statements allow for more
+                  complex constructs. A compound statement is seen in the sample \code{while} loop above.
+        \end{notelist}
+    \item An expression is one of the following:
+        \begin{notelist}
+            \item A variable reference that evaluates to the variables current value in the global name scope.
+            \item A literal integer constant. You only need to support decimal notation with optional negation.
+            \item Binary operator application. See the description of binary operators below.
+            \item Unary operator application. The only unary operator you need to support is \code{!} for logical negation.
+        \end{notelist}
+    \item \code{read} statements, assignment statements, and variable references require the notion of identifiers. Your
+          parser should support identifiers that start with an alphabetic character followed by zero or more alphanumeric
+          characters.
+    \item \code{sprint} uses string literals. Your parser does not need to support escape sequences in string literals.
+\end{notelist}
+
+\subsection{Expressions, Arithmetic, and Logic}
+
+\begin{notelist}
+    \item LANG does not support binary operators with different precedence or associativity. As such, binary expressions must
+          be surrounded with parentheses if they are subexpression of a larger expression.
+    \item All arithmetic in LANG is with integers, specifically Haskell's arbitrary-precision integers. The division operator
+          should perform integer division only.
+    \item Relational and comparison operators should return \code{1} for true and \code{0} for false.
+    \item Logical operators (including unary logical negation) should treat non-zero values as true and \code{0} as false.
+\end{notelist}
+
+The following binary operators should be supported:
+
+\begin{notelist}
+    \item \code{+} -- Addition
+    \item \code{-} -- Subtraction
+    \item \code{*} -- Multiplication
+    \item \code{/} -- Division
+    \item \code{\^} -- Exponentiation
+    \item \code{\%} -- Modulus
+    \item \code{==} -- Equality
+    \item \code{>} -- Comparison: greater than
+    \item \code{<} -- Comparison: less than
+    \item \code{>=} -- Comparison: greater than or equal to
+    \item \code{<=} -- Comparison: less than or equal to
+    \item \code{\&\&} -- Logical AND
+    \item \code{||} -- Logical OR
+\end{notelist}
+
+\section{Implementation}
+
+Copy the starter files (\code{Parsing.hs} and \code{AST.hs}) into a directory for your implementation.
+Create a Haskell source file \code{Main.hs} with a function \code{main :: IO ()} to hold your 
+program's main entry point.
+
+Create separate modules for your parser and interpreter and import those into your \code{Main.hs}. 
+The parsing module will need to import \code{Parsing}, the module defined in \code{Parsing.hs} and
+the \code{AST} module in \code{AST.hs}. Your interpreter module will just need the \code{AST} module.
+
+You main function should use the \code{System.Environment} module to read your program's command-line
+arguments. If exactly one argument was given, treat that as the file name of the source file to
+interpret. Load the the contents of that file as a string and parse it. If the parse was successful,
+interpret the resulting \code{Program} value. If parse was not successful, report the message to the 
+user and exit.
+
+You should be able to compile your program into an executable with:
+
+\begin{lstlisting}
+> ghc Main.hs
+\end{lstlisting}
+
+You should also be able to run your program without compiling it with:
+
+\begin{lstlisting}
+> runghc Main.hs
+\end{lstlisting}
+
+\subsection{Implementing the parser}
+
+The \code{Parsing} module defines the \code{Parser} type, a state monad with the \code{ExceptT}
+transformer adding the possibility of failure with \code{ParseError} values. Your ultimate goal is to
+write a parser of type \code{Parser Program} in terms of lower-level parsers for statements, expressions,
+identifiers, etc.
+
+Composing parsing primitives into more complex parsers allows us to avoid an explicit lexing step,
+where a stream of characters is broken down into a stream of important tokens like identifiers, string and 
+integer literals, punctuation, etc. However, this means your parser needs to explicitly ignore 
+whitespace and newlines. Use the \code{token}, \code{strToken}, and \code{whitespace} parsers
+to help with this. Try to move whitespace handling to the lowest-level functions so that higher-level
+parsers are more readable.
+
+Be sure to consider what happens when your parser finishes parsing a single statement and the remaining
+input cannot be parsed. This is probably erroneous. Consider how you might use the \code{eoi} (end-of-input)
+parser to require that the program parse the input buffer in its entirety before succeeding.
+
+\subsection{Implementing the interpreter}
+
+Because LANG programs need to read and write to the console while also manipulating the global
+name scope, you will need to compose the \code{IO} monad with the \code{StateT} transformer.
+You will also need to write a function that can execute an action in this combined monad.
+
+Use the \code{Map} type from the \code{Data.Map} module to map \code{String} identifiers to their
+values.
+
+Consider writing a function for interpreting a single statement that uses pattern matching to
+consider each of LANG's statement types. How might you implement \code{while}-loop iteration
+in Haskell? How can you interpret a \code{Program}, i.e., a list of \code{Statement}s, without
+explicit recursion?
+
+Consider writing some basic primitive operations for your composed \code{IO}/\code{StateT} monad
+for loading the value of an variable, storing a new value in a variable, reading and writing 
+integers, and echoing strings to the console. Write your interpreter function in terms of these
+primitives.
+
+\end{document}
