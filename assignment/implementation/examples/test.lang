@@ -1,0 +1,23 @@
+guesses = 0
+target = 7
+sprint "I am thinking of a number between one and ten. Guess it."
+sprint "What is your guess?"
+read x
+guesses = guesses + 1
+while x != target {
+    sprint "WRONG! Guess again."
+    read x
+    guesses = guesses + 1
+}
+sprint "You got it, the number was:"
+print target
+sprint "It only took you this many guesses:"
+print guesses
+if guesses == 1 then
+    sprint "You're clearly psychic."
+else if guesses < 4 then
+    sprint "That was pretty good."
+else if guesses < 10 then
+    sprint "That was bad."
+else
+    sprint "Terrible."

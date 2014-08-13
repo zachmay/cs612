@@ -7,7 +7,10 @@ import Control.Applicative ((<$>), (<*>))
 parseProgram = runP program
 
 program :: Parser Program
-program = many statement
+program = do
+    prog <- many statement
+    eoi
+    return prog
 
 statement :: Parser Statement
 statement = printStatement
@@ -15,97 +18,63 @@ statement = printStatement
         <|> readStatement
         <|> assignStatement
         <|> whileStatement
-        <|> ifThenStatement
         <|> ifThenElseStatement
+        <|> ifThenStatement
         <|> compoundStatement
 
 printStatement = do
-    string "print"
-    spaces
+    strToken "print"
     expr <- expression
-    spaces
     return $ Print expr
 
 printStringStatement = do
-    string "sprint"
-    spaces
+    strToken "sprint"
     str <- stringLiteral
-    spaces
     return $ PrintString str
     
 readStatement = do
-    string "read"
-    spaces
+    strToken "read"
     ident <- identifier
-    spaces
     return $ Read ident
 
 assignStatement = do
     ident <- identifier
-    spaces
-    string "="
-    spaces
+    strToken "="
     expr <- expression
-    spaces
     return $ Assign ident expr
 
 whileStatement = do
-    string "while"
-    spaces
+    strToken "while"
     expr <- expression
-    spaces
     stmt <- statement
-    spaces
     return $ While expr stmt
 
 ifThenStatement = do
-    string "if"
-    spaces
+    strToken "if"
     expr <- expression
-    spaces
-    string "then"
-    spaces
+    strToken "then"
     trueStmt <- statement
-    spaces
     return $ IfThen expr trueStmt
 
 ifThenElseStatement = do
-    string "if"
-    spaces
+    strToken "if"
     expr <- expression
-    spaces
-    string "then"
-    spaces
+    strToken "then"
     trueStmt <- statement
-    spaces
-    string "else"
-    spaces
+    strToken "else"
     falseStmt <- statement
-    spaces
     return $ IfThenElse expr trueStmt falseStmt
 
 compoundStatement = do
-    string "{"
-    spaces
+    strToken "{"
     stmts <- many statement
-    spaces
-    string "}"
-    spaces
+    strToken "}"
     return $ Compound stmts
-
-{-
-expression :: Parser Expression
-expression = binaryOpExpr
-         <|> unaryOpExpr
-         <|> varExpr
-         <|> constExpr
--}
 
 expression = do
     t <- term
-    spaces
     tail <- optional termTail
-    spaces
+    whitespace
     case tail of
         Nothing      -> return t
         Just (op, u) -> return $ BinaryOp op t u
@@ -127,32 +96,30 @@ termTail = do
                     ">"  -> GreaterThan
                     "&&" -> And
                     "||" -> Or
-    spaces
     t <- term
-    spaces
     return (op, t)
-    where binaryOperator = string "+"
-                       <|> string "-"
-                       <|> string "*"
-                       <|> string "/"
-                       <|> string "%"
-                       <|> string "^"
-                       <|> string "=="
-                       <|> string "!="
-                       <|> string "<="
-                       <|> string "<" 
-                       <|> string ">="
-                       <|> string ">" 
-                       <|> string "&&"
-                       <|> string "||"
+    where binaryOperator = strToken "+"
+                       <|> strToken "-"
+                       <|> strToken "*"
+                       <|> strToken "/"
+                       <|> strToken "%"
+                       <|> strToken "^"
+                       <|> strToken "=="
+                       <|> strToken "!="
+                       <|> strToken "<="
+                       <|> strToken "<" 
+                       <|> strToken ">="
+                       <|> strToken ">" 
+                       <|> strToken "&&"
+                       <|> strToken "||"
 
 term = varExpr
    <|> constExpr
    <|> unaryOpExpr
    <|> do
-           string "("
+           strToken "("
            expr <- expression
-           string ")"
+           strToken ")"
            return expr
              
 varExpr = Var <$> identifier
@@ -163,20 +130,15 @@ unaryOpExpr = do
     opString <- unaryOperator
     let op = case opString of
                     "!"  -> LogicalNegate
-    spaces
     t <- term
-    spaces
     return $ UnaryOp op t
-    where unaryOperator = string "!"
-
-{-
-unaryOpExpr = fail "Unary operator parsing not implemented"
--}
+    where unaryOperator = strToken "!"
 
 integerLiteral :: Parser Integer
 integerLiteral = do
     negation <- optional $ char '~'
     digits <- manyOne $ oneOf "0123456789"
+    whitespace
     let sign = case negation of Nothing -> 1
                                 Just _  -> -1
     return $ sign * (read digits)
@@ -187,12 +149,14 @@ stringLiteral = do
     char '"'
     contents <- many $ otherThan ['"']
     char '"'
+    whitespace
     return contents
 
 identifier :: Parser Ident
 identifier = do
     first <- alpha
     rest <- many alphanumeric
+    whitespace
     return . Ident $ first : rest
 
 alpha :: Parser Char 
@@ -201,6 +165,3 @@ alpha = oneOf $ ['a' .. 'z'] ++ ['A' .. 'Z']
 numeric = oneOf ['0' .. '9']
 
 alphanumeric = alpha <|> numeric
-
-spaces = many $ oneOf " \t\r\n"
-

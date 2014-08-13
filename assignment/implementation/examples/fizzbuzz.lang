@@ -1,0 +1,26 @@
+sprint "How high?"
+read max
+
+i = 1
+
+while i <= max
+{
+    if ((i % 3) == 0) && ((i % 5) == 0) then
+    {
+        sprint "fizzbuzz"
+    }
+    else if (i % 3) == 0 then
+    {
+        sprint "fizz"
+    }
+    else if (i % 5) == 0 then
+    {
+        sprint "buzz"
+    }
+    else
+    {
+        print i
+    }
+    sprint ""
+    i = i + 1
+}

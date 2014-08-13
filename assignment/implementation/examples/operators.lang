@@ -1,0 +1,68 @@
+x = 10
+y = 2
+
+sprint "a) 10 + 2" 
+print (10 + 2)
+
+sprint "b) 10 - 2"
+print (10 - 2)
+
+sprint "c) 10 * 2"
+print (10 * 2)
+
+sprint "d) 10 / 2"
+print (10 / 2)
+
+sprint "e) 10 % 2"
+print (10 % 2)
+
+sprint "f) 10 ^ 2"
+print (10 ^ 2)
+
+sprint "g) 10 == 2"
+print (10 == 2)
+
+sprint "h) 10 != 2"
+print (10 != 2)
+
+sprint "i) 10 > 2"
+print (10 > 2)
+
+sprint "j) 10 < 2"
+print (10 < 2)
+
+sprint "k) 10 >= 2"
+print (10 >= 2)
+
+sprint "l) 10 <= 2"
+print (10 <= 2)
+
+sprint "Logical AND"
+
+sprint "0 && 0"
+print (0 && 0)
+
+sprint "1 && 0"
+print (1 && 0)
+
+sprint "0 && 1"
+print (0 && 1)
+
+sprint "1 && 1"
+print (1 && 1)
+
+sprint "Logical OR"
+
+sprint "0 || 0"
+print (0 || 0)
+
+sprint "1 || 0"
+print (1 || 0)
+
+sprint "0 || 1"
+print (0 || 1)
+
+sprint "1 || 1"
+print (1 || 1)
+
+

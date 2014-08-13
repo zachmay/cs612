@@ -7,19 +7,19 @@ import Control.Monad.Trans.State
 import Data.Map
 import Prelude hiding (lookup, read)
 
-runProgram program = runStateT (interpretProgram program) empty
-execProgram program = execStateT (interpretProgram program) empty
+-- | Evaluate the given parsed program AST 
+evalProgram :: Program -> IO ()
 evalProgram program = evalStateT (interpretProgram program) empty
 
 -- | Representation of a program's name scope.
 type Env = Map String Integer
 
 -- | Type synonym: the Interpreter monad is the IO monad wrapped in a State monad
--- | transformer tracking the programs current name scope.
+--   transformer tracking the programs current name scope. 
 type Interpreter = StateT Env IO 
 
 -- | Given a string, load the value of the variable with that name from the
--- | name scope if possible. Fails on error.
+--   name scope if possible. Fails on error.
 load :: String -> Interpreter Integer
 load ident = do
     env <- get
@@ -44,16 +44,15 @@ interpretProgram :: Program -> Interpreter ()
 interpretProgram = mapM_ interpret
 
 -- | Interpret a Statement.
--- |     Empty:       The empty statement, just yield ()
--- |     Assign:      Evaluate the expression and store its value in the given variable.
--- |     Print:       Evaluate the expression and write the result to standard output. 
--- |     PrintString: Print a string literal to the screen.
--- |     While:       Evaluate the loop condition. If it is non-zero, interpret the body
--- |                  then recursively re-interpret the whole While statement. Otherwise,
--- |                  stop.
--- |     If:          Evaluate the condition. If the result is non-zero, interpret the
--- |                  true branch statement. Otherwise, interpret the false branch statement.
--- |     Compound:    Evaluate each constituent statement sequentially.
+--       * Empty: The empty statement, just yield ()
+--       * Assign: Evaluate the expression and store its value in the given variable.
+--       * Print: Evaluate the expression and write the result to standard output. 
+--       * PrintString: Print a string literal to the screen.
+--       * While: Evaluate the loop condition. If it is non-zero, interpret the body
+--         then recursively re-interpret the whole While statement. Otherwise, stop.
+--       * If: Evaluate the condition. If the result is non-zero, interpret the
+--         true branch statement. Otherwise, interpret the false branch statement.
+--       * Compound: Evaluate each constituent statement sequentially.
 interpret :: Statement -> Interpreter ()
 interpret Empty                        = return ()
 interpret (Assign (Ident v) expr)      = evaluate expr >>= store v
@@ -82,10 +81,10 @@ interpret (IfThenElse expr trueStmt falseStmt) = do
 interpret (Compound stmts) = mapM_ interpret stmts
 
 -- | Evaluate an expression
--- |     Const:    Yield the constant value
--- |     Var:      Load and yield the value associated with the identifier
--- |     BinaryOp: Evaluate both operands and apply the binary operator to them.
--- |     UnaryOp:  Evaluate the operand and apply the unary operator to it.
+--       * Const: Yield the constant value
+--       * Var: Load and yield the value associated with the identifier
+--       * BinaryOp: Evaluate both operands and apply the binary operator to them.
+--       * UnaryOp: Evaluate the operand and apply the unary operator to it.
 evaluate :: Expression -> Interpreter Integer 
 evaluate (Const x)                 = return x
 evaluate (Var (Ident ident))       = load ident
@@ -93,7 +92,8 @@ evaluate (BinaryOp op expr1 expr2) = evalBinaryOp op <$> evaluate expr1 <*> eval
 evaluate (UnaryOp op expr)         = evalUnaryOp  op <$> evaluate expr
 
 -- | Apply a pure binary operator to two arguments.
--- | Comparison operators return 0 for false, 1 for true.
+--   Relational operators return 0 for false, 1 for true.
+--   Boolean operators consider 0 false and non-zero values true.
 evalBinaryOp :: BinaryOperator -> Integer -> Integer -> Integer
 evalBinaryOp Add           x y = x + y
 evalBinaryOp Sub           x y = x - y
@@ -110,5 +110,7 @@ evalBinaryOp LessThanEq    x y = if x <= y then 1 else 0
 evalBinaryOp And           x y = if x == 0 then 0 else y
 evalBinaryOp Or            x y = if x == 0 then y else 1
 
+-- | Apply a pure unary operator to a single argument.
+--   Boolean negation uses 0 for false, 1 for true.
 evalUnaryOp :: UnaryOperator -> Integer -> Integer
 evalUnaryOp LogicalNegate x = if x == 0 then 1 else 0
