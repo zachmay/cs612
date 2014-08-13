@@ -1,9 +1,12 @@
 pdf:
-	cd lecture-notes && texi2pdf lecture-notes.tex --output=../lecture-notes.pdf
+	cd lecture-notes && texi2pdf lecture-notes.tex --output=../lecture-notes.pdf && cd ..
+	cd assignment && texi2pdf assignment.tex --output=distribution/assignment.pdf
 
 clean:
-	tcsh -c 'rm -f lecture-notes/*.{aux,dvi,log,ps,pdf,log,lot,toc,lof,bbl,4ct,4tc,css,fff,idv,lg,rtf,sdw,tmp,ttt,xref,nav,snm,out}'
-	tcsh -c 'rm -f lecture-notes.pdf'
+	sh -c 'rm -f lecture-notes/*.{aux,dvi,log,ps,pdf,log,lot,toc,lof,bbl,4ct,4tc,css,fff,idv,lg,rtf,sdw,tmp,ttt,xref,nav,snm,out}'
+	sh -c 'rm -f assignment/*.{aux,dvi,log,ps,pdf,log,lot,toc,lof,bbl,4ct,4tc,css,fff,idv,lg,rtf,sdw,tmp,ttt,xref,nav,snm,out}'
+	sh -c 'rm -f lecture-notes.pdf'
+	sh -c 'rm -f assignment.pdf'
 
 # vim:filetype=make:
 # set PUBLISHAS and GOAL before the "include" line
