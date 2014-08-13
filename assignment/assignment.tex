@@ -101,7 +101,7 @@ The structure of a LANG program is reflected in the types defined in \code{AST.h
     \item An expression is one of the following:
         \begin{notelist}
             \item A variable reference that evaluates to the variables current value in the global name scope.
-            \item A literal integer constant. You only need to support decimal notation with optional negation.
+            \item A literal integer constant. You only need to support decimal notation with optional negation using \code{~} (e.g., \code{~6} for negative six).
             \item Binary operator application. See the description of binary operators below.
             \item Unary operator application. The only unary operator you need to support is \code{!} for logical negation.
         \end{notelist}
